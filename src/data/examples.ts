@@ -1,6 +1,7 @@
 import { ProcessDefinition } from "@/lib/types";
 import { ARW_COMERCIAL_GRAPH } from "./graphs/arw-comercial";
 import { MATURI_COMERCIAL_GRAPH } from "./graphs/maturi-comercial";
+import { MATURI_MARKETING_GRAPH } from "./graphs/maturi-marketing";
 
 export const EXAMPLE_PROCESSES: ProcessDefinition[] = [
   {
@@ -22,6 +23,16 @@ export const EXAMPLE_PROCESSES: ProcessDefinition[] = [
       "Dois pools no mesmo diagrama: comercial (captação → SDR → Closer → proposta → C4) conectado ao onboarding (form → contrato → Autentique → ativação). Stack: ClickUp · n8n · Zappfy · Brevo · Google · Autentique · GPT.",
     updatedAt: "2026-04-07",
     graph: MATURI_COMERCIAL_GRAPH,
+  },
+  {
+    id: "maturi-marketing",
+    client: "maturi",
+    process: "marketing",
+    title: "Maturi — Marketing",
+    description:
+      "Três pools: Produção de Conteúdo (Copywriting → Design) · Performance & Growth (Campanhas → Otimização → Públicos) · Publicação (Posts + Disparos). 8 automações n8n: passagem de bastão, aprovação WhatsApp, ciclo de otimização, relatório semanal.",
+    updatedAt: "2026-04-07",
+    graph: MATURI_MARKETING_GRAPH,
   },
 ];
 
