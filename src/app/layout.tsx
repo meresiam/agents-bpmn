@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Plus_Jakarta_Sans, JetBrains_Mono } from 'next/font/google';
+import { AuthShell } from '@/components/AuthShell';
 import './globals.css';
 
 const sans = Plus_Jakarta_Sans({
@@ -17,8 +18,8 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Bravy BPMN — Visualizador de Processos',
-  description: 'Visualize fluxogramas de processos de forma interativa e profissional.',
+  title: 'Bravy BPMN — Ferramenta interna',
+  description: 'Visualizador BPMN 2.0 interno Bravy (JSON Bravy Graph).',
 };
 
 export default function RootLayout({
@@ -28,7 +29,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR" className={`${sans.variable} ${mono.variable}`}>
-      <body className="bg-zinc-100 text-zinc-900 antialiased font-sans">{children}</body>
+      <body className="bg-zinc-100 text-zinc-900 antialiased font-sans">
+        <AuthShell>{children}</AuthShell>
+      </body>
     </html>
   );
 }
