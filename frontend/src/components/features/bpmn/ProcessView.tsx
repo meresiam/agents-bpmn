@@ -87,18 +87,24 @@ function FlowCanvasWithOverlays({
   const flowRef = useRef<HTMLDivElement>(null);
   const reactFlowInstance = useReactFlow();
 
+  // Use refs to avoid stale closures in onPaneClick
+  const canvasModeRef = useRef(canvasMode);
+  canvasModeRef.current = canvasMode;
+  const onNoteClickRef = useRef(onNoteCanvasClick);
+  onNoteClickRef.current = onNoteCanvasClick;
+
   const handlePaneClick = useCallback(
     (e: React.MouseEvent) => {
-      if (canvasMode !== 'note') return;
+      if (canvasModeRef.current !== 'note') return;
       const rect = flowRef.current?.getBoundingClientRect();
       if (!rect) return;
       const flowPos = reactFlowInstance.project({
         x: e.clientX - rect.left,
         y: e.clientY - rect.top,
       });
-      onNoteCanvasClick(flowPos.x, flowPos.y);
+      onNoteClickRef.current(flowPos.x, flowPos.y);
     },
-    [canvasMode, onNoteCanvasClick, reactFlowInstance],
+    [reactFlowInstance],
   );
 
   const modeClass = canvasMode === 'note' ? 'cursor-copy-mode' : canvasMode === 'comment' ? 'cursor-crosshair-mode' : '';
