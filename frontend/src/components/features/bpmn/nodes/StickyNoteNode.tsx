@@ -2,13 +2,14 @@
 
 import { memo, useRef, useState } from 'react';
 import { NodeProps } from 'reactflow';
-import { Trash2 } from 'lucide-react';
+import { Palette, Trash2 } from 'lucide-react';
 
 export interface StickyNoteNodeData {
   noteId: string;
   content: string;
   color: string;
   onUpdate: (noteId: string, content: string) => void;
+  onColorChange: (noteId: string, color: string) => void;
   onDelete: (noteId: string) => void;
 }
 
@@ -21,9 +22,12 @@ const COLOR_MAP: Record<string, { bg: string; border: string; text: string; shad
   PURPLE: { bg: '#f3e8ff', border: '#c4b5fd', text: '#3b0764', shadow: 'rgba(196,181,253,0.25)' },
 };
 
+const COLOR_KEYS = Object.keys(COLOR_MAP);
+
 function StickyNoteNodeComponent({ data }: NodeProps<StickyNoteNodeData>) {
   const colors = COLOR_MAP[data.color] || COLOR_MAP.YELLOW;
   const [editing, setEditing] = useState(false);
+  const [showColors, setShowColors] = useState(false);
   const [content, setContent] = useState(data.content);
   const textRef = useRef<HTMLTextAreaElement>(null);
 
@@ -51,17 +55,52 @@ function StickyNoteNodeComponent({ data }: NodeProps<StickyNoteNodeData>) {
         setTimeout(() => textRef.current?.focus(), 0);
       }}
     >
-      {/* Delete */}
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          data.onDelete(data.noteId);
-        }}
-        className="absolute -top-2 -right-2 w-4 h-4 bg-white border border-zinc-300 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-50 hover:text-red-500 z-10"
-      >
-        <Trash2 size={8} />
-      </button>
+      {/* Action buttons — top right */}
+      <div className="absolute -top-2 -right-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+        {/* Color picker */}
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setShowColors(!showColors); }}
+          onMouseDown={(e) => e.stopPropagation()}
+          className="w-4 h-4 bg-white border border-zinc-300 rounded-full flex items-center justify-center shadow-sm hover:bg-zinc-50 text-zinc-500 nodrag"
+        >
+          <Palette size={8} />
+        </button>
+        {/* Delete */}
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); data.onDelete(data.noteId); }}
+          onMouseDown={(e) => e.stopPropagation()}
+          className="w-4 h-4 bg-white border border-zinc-300 rounded-full flex items-center justify-center shadow-sm hover:bg-red-50 hover:text-red-500 text-zinc-500 nodrag"
+        >
+          <Trash2 size={8} />
+        </button>
+      </div>
+
+      {/* Color picker dropdown */}
+      {showColors && (
+        <div
+          className="absolute -top-8 right-0 flex items-center gap-1 bg-white border border-zinc-200 rounded-full px-1.5 py-1 shadow-lg z-20 nodrag"
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          {COLOR_KEYS.map((key) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => {
+                data.onColorChange(data.noteId, key);
+                setShowColors(false);
+              }}
+              className={`w-4 h-4 rounded-full border-2 transition-transform ${
+                data.color === key ? 'scale-125 border-zinc-600' : 'border-transparent hover:scale-110'
+              }`}
+              style={{ background: COLOR_MAP[key].border }}
+              title={key.charAt(0) + key.slice(1).toLowerCase()}
+            />
+          ))}
+        </div>
+      )}
 
       {editing ? (
         <textarea

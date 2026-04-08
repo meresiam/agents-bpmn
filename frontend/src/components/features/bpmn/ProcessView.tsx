@@ -15,7 +15,6 @@ import ReactFlow, {
   Panel,
   Node,
   NodeDragHandler,
-  useReactFlow,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -23,7 +22,7 @@ import { graphToReactFlow } from '@/lib/parse-process-graph';
 import { layoutProcessGraph } from '@/lib/layout';
 import { BpmnNode, BpmnEdge, formatProcessGraphPoolLabel } from '@/lib/types';
 import { getProcess, ProcessDetail } from '@/services/process.service';
-import { getThreads, createThread, CommentThread } from '@/services/comment.service';
+import { getThreads, createThread, deleteThread, CommentThread } from '@/services/comment.service';
 import { getNotes, createNote, updateNote, deleteNote, StickyNote as StickyNoteType } from '@/services/sticky-note.service';
 import { useAuth } from '@/contexts/auth.context';
 import { CommentsPanel } from '@/components/shared/CommentsPanel';
@@ -66,6 +65,7 @@ function FlowCanvasWithOverlays({
   onNoteCanvasClick,
   onNoteDragStop,
   onThreadUpdated,
+  onDeleteThread,
 }: {
   initialNodes: BpmnNode[];
   initialEdges: BpmnEdge[];
@@ -79,33 +79,18 @@ function FlowCanvasWithOverlays({
   onNoteCanvasClick: (x: number, y: number) => void;
   onNoteDragStop: NodeDragHandler;
   onThreadUpdated: () => void;
+  onDeleteThread: (threadId: string) => void;
 }) {
   const edgesWithStyle = useMemo(() => withBpmnEdgeStyle(initialEdges), [initialEdges]);
   const allNodes = useMemo(() => [...initialNodes, ...noteNodes] as any[], [initialNodes, noteNodes]);
-  const [nodes, , onNodesChange] = useNodesState(allNodes as BpmnNode[]);
+  const [nodes, setNodes, onNodesChange] = useNodesState(allNodes as BpmnNode[]);
   const [edges, , onEdgesChange] = useEdgesState(edgesWithStyle);
+
+  // Sync nodes when noteNodes change (useNodesState only uses initial value)
+  useEffect(() => {
+    setNodes([...initialNodes, ...noteNodes] as any[]);
+  }, [noteNodes, initialNodes, setNodes]);
   const flowRef = useRef<HTMLDivElement>(null);
-  const reactFlowInstance = useReactFlow();
-
-  // Use refs to avoid stale closures in onPaneClick
-  const canvasModeRef = useRef(canvasMode);
-  canvasModeRef.current = canvasMode;
-  const onNoteClickRef = useRef(onNoteCanvasClick);
-  onNoteClickRef.current = onNoteCanvasClick;
-
-  const handlePaneClick = useCallback(
-    (e: React.MouseEvent) => {
-      if (canvasModeRef.current !== 'note') return;
-      const rect = flowRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const flowPos = reactFlowInstance.project({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-      });
-      onNoteClickRef.current(flowPos.x, flowPos.y);
-    },
-    [reactFlowInstance],
-  );
 
   const modeClass = canvasMode === 'note' ? 'cursor-copy-mode' : canvasMode === 'comment' ? 'cursor-crosshair-mode' : '';
 
@@ -117,7 +102,6 @@ function FlowCanvasWithOverlays({
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeDragStop={onNoteDragStop}
-        onPaneClick={handlePaneClick}
         nodeTypes={nodeTypes}
         fitView
         fitViewOptions={{ padding: 0.3, maxZoom: 1.5 }}
@@ -150,12 +134,14 @@ function FlowCanvasWithOverlays({
         </Panel>
       </ReactFlow>
 
-      {/* Comment pins layer */}
+      {/* Unified overlay: handles both comment and note clicks */}
       <CommentPins
         threads={threads}
-        commentMode={canvasMode === 'comment'}
-        onCanvasClick={onCommentCanvasClick}
+        mode={canvasMode === 'comment' ? 'comment' : canvasMode === 'note' ? 'note' : 'off'}
+        onCommentClick={onCommentCanvasClick}
+        onNoteClick={onNoteCanvasClick}
         onThreadUpdated={onThreadUpdated}
+        onDeleteThread={onDeleteThread}
       />
 
       {/* Mode indicator */}
@@ -246,7 +232,11 @@ export default function ProcessView() {
         setNewThreadPrompt(null);
       }
       if (e.key === 'n' || e.key === 'N') {
-        setCanvasMode((prev) => prev === 'note' ? 'default' : 'note');
+        setCanvasMode((prev) => {
+          const next = prev === 'note' ? 'default' : 'note';
+          console.log('[KEY] N pressed, canvasMode:', prev, '->', next);
+          return next;
+        });
       }
       if (e.key === 'Escape') {
         setCanvasMode('default');
@@ -275,19 +265,35 @@ export default function ProcessView() {
     } catch { /* silently fail */ }
   }, [newThreadPrompt, newThreadContent, processId, loadThreads]);
 
+  // Delete thread from pin
+  const handleDeleteThread = useCallback(async (threadId: string) => {
+    try {
+      await deleteThread(threadId);
+      loadThreads();
+    } catch { /* silently fail */ }
+  }, [loadThreads]);
+
   // Note canvas click
   const handleNoteCanvasClick = useCallback(async (x: number, y: number) => {
-    if (!processId) return;
+    console.log('[NOTE] handleNoteCanvasClick called', { x, y, processId });
+    if (!processId) { console.log('[NOTE] no processId, aborting'); return; }
     try {
-      await createNote(processId, { content: 'Nova nota', x, y });
+      const result = await createNote(processId, { content: 'Nova nota', x, y });
+      console.log('[NOTE] created:', result);
       loadNotes();
       setCanvasMode('default');
-    } catch { /* silently fail */ }
+    } catch (err) { console.error('[NOTE] create failed:', err); }
   }, [processId, loadNotes]);
 
   // Handle sticky note update (content edit from node)
   const handleNoteUpdate = useCallback(async (noteId: string, content: string) => {
     await updateNote(noteId, { content });
+    loadNotes();
+  }, [loadNotes]);
+
+  // Handle sticky note color change
+  const handleNoteColorChange = useCallback(async (noteId: string, color: string) => {
+    await updateNote(noteId, { color: color as any });
     loadNotes();
   }, [loadNotes]);
 
@@ -318,10 +324,11 @@ export default function ProcessView() {
         content: note.content,
         color: note.color,
         onUpdate: handleNoteUpdate,
+        onColorChange: handleNoteColorChange,
         onDelete: handleNoteDelete,
       },
     }));
-  }, [stickyNotes, handleNoteUpdate, handleNoteDelete]);
+  }, [stickyNotes, handleNoteUpdate, handleNoteColorChange, handleNoteDelete]);
 
   const handleCopyGraphJson = useCallback(() => {
     if (!proc) return;
@@ -376,6 +383,7 @@ export default function ProcessView() {
             threads={threads} noteNodes={noteNodes} canvasMode={canvasMode}
             onCommentCanvasClick={handleCommentCanvasClick} onNoteCanvasClick={handleNoteCanvasClick}
             onNoteDragStop={handleNoteDragStop} onThreadUpdated={loadThreads}
+            onDeleteThread={handleDeleteThread}
           />
         </ReactFlowProvider>
       </div>
@@ -461,6 +469,7 @@ export default function ProcessView() {
               threads={threads} noteNodes={noteNodes} canvasMode={canvasMode}
               onCommentCanvasClick={handleCommentCanvasClick} onNoteCanvasClick={handleNoteCanvasClick}
               onNoteDragStop={handleNoteDragStop} onThreadUpdated={loadThreads}
+              onDeleteThread={handleDeleteThread}
             />
           </ReactFlowProvider>
 
