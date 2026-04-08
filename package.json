@@ -21,6 +21,9 @@
     "react-dom": "^18.3.1",
     "reactflow": "^11.11.4"
   },
+  "resolutions": {
+    "eslint-visitor-keys": "^4.2.0"
+  },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "@types/react": "^18.3.14",
