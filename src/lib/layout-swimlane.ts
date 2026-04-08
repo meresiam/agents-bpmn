@@ -182,6 +182,7 @@ function computeGeometry(
   maxRank: number,
   lanes: string[],
   pred: Map<string, string[]>,
+  adj: Map<string, string[]>,
   nodeHeightMap?: Map<string, number>
 ) {
   const laneCount = lanes.length;
@@ -232,17 +233,36 @@ function computeGeometry(
   // ── Position nodes rank-by-rank (predecessor-aware Y) ───────────────
   const positions = new Map<string, { x: number; y: number }>();
 
+  function placeCell(l: number, r: number, targetCenterY: number | null) {
+    const cell = grid.get(`${l},${r}`);
+    if (!cell) return;
+
+    const laneTop = laneYOffsets[l];
+    const laneH = laneHeights[l];
+    const colCenter = colX[r] + colWidths[r] / 2;
+    const sh = stackHeight(cell.items);
+
+    const laneCenterY = laneTop + laneH / 2;
+    const centerY = targetCenterY ?? laneCenterY;
+
+    const minTop = laneTop + LANE_VERT_PAD;
+    const maxTop = laneTop + laneH - sh - LANE_VERT_PAD;
+    let startY = centerY - sh / 2;
+    startY = Math.max(minTop, Math.min(startY, maxTop));
+
+    let nodeY = startY;
+    for (const item of cell.items) {
+      positions.set(item.id, { x: colCenter - item.w / 2, y: nodeY });
+      nodeY += item.h + NODE_GAP_Y;
+    }
+  }
+
+  // Forward pass: rank 1+ uses predecessor Y
   for (let r = 0; r <= maxRank; r++) {
     for (let l = 0; l < laneCount; l++) {
       const cell = grid.get(`${l},${r}`);
       if (!cell) continue;
 
-      const laneTop = laneYOffsets[l];
-      const laneH = laneHeights[l];
-      const colCenter = colX[r] + colWidths[r] / 2;
-      const sh = stackHeight(cell.items);
-
-      // Compute target Y center from predecessors
       let targetCenterY: number | null = null;
       if (r > 0) {
         const predYs: number[] = [];
@@ -259,22 +279,34 @@ function computeGeometry(
           targetCenterY = predYs.reduce((s, v) => s + v, 0) / predYs.length;
         }
       }
+      placeCell(l, r, targetCenterY);
+    }
+  }
 
-      // Default: center in lane
-      const laneCenterY = laneTop + laneH / 2;
-      const centerY = targetCenterY ?? laneCenterY;
+  // Final pass: align startEnd nodes to the center Y of their closest neighbor
+  for (const [, cell] of grid) {
+    for (const item of cell.items) {
+      if (item.type !== 'startEnd') continue;
+      const pos = positions.get(item.id);
+      if (!pos) continue;
 
-      // Clamp stack to stay within lane bounds
-      const minTop = laneTop + LANE_VERT_PAD;
-      const maxTop = laneTop + laneH - sh - LANE_VERT_PAD;
-      let startY = centerY - sh / 2;
-      startY = Math.max(minTop, Math.min(startY, maxTop));
-
-      // Place each node in the stack
-      let nodeY = startY;
-      for (const item of cell.items) {
-        positions.set(item.id, { x: colCenter - item.w / 2, y: nodeY });
-        nodeY += item.h + NODE_GAP_Y;
+      const neighbors = [
+        ...(adj.get(item.id) ?? []),
+        ...(pred.get(item.id) ?? []),
+      ];
+      let bestY: number | null = null;
+      for (const n of neighbors) {
+        const nPos = positions.get(n);
+        if (nPos) {
+          const nH = nodeHeightMap?.get(n) ?? 100;
+          // Align center of startEnd with center of neighbor
+          bestY = nPos.y + nH / 2;
+          break; // use first neighbor (most directly connected)
+        }
+      }
+      if (bestY !== null) {
+        // Set Y so that center of startEnd aligns with neighbor center
+        positions.set(item.id, { x: pos.x, y: bestY - item.h / 2 });
       }
     }
   }
@@ -324,7 +356,7 @@ export function getSwimlaneLayoutedElements(
   for (const cn of contentNodes) nodeHeightMap.set(cn.id, cn.h);
 
   // Phase 4
-  const { positions, laneHeights } = computeGeometry(grid, maxRank, lanes, pred, nodeHeightMap);
+  const { positions, laneHeights } = computeGeometry(grid, maxRank, lanes, pred, adj, nodeHeightMap);
 
   // Build output nodes
   const outputNodes: BpmnNode[] = contentNodes.map((cn) => ({

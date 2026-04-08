@@ -56,7 +56,7 @@ function StartEndNodeComponent({ data, selected, id }: NodeProps<BpmnNodeData>) 
             cx="18"
             cy="18"
             r={isEnd ? 14 : 15}
-            fill="white"
+            fill={isEnd ? '#fecaca' : '#fef9c3'}
             stroke="currentColor"
             strokeWidth={isEnd ? 3.25 : selected ? 2 : 1.5}
           />

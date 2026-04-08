@@ -4,7 +4,7 @@ export const NODE_WIDTHS: Record<string, number> = {
   activity: 200,
   /** losango 48px + rótulo abaixo */
   decision: 160,
-  /** circle 36px + label beside it (~150px) */
+  /** circle 36px + label beside (~150px) */
   startEnd: 190,
   automation: 200,
   bpmnPool: 400,
