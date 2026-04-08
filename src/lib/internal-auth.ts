@@ -1,10 +1,13 @@
+import {
+  SESSION_COOKIE_NAME,
+  SESSION_MAX_AGE_SEC,
+} from '@/lib/session-cookie';
+
 /** Credenciais fixas — ferramenta interna. Altere aqui ou migre para env em produção. */
 export const INTERNAL_ADMIN = {
   username: 'admin',
-  password: 'bravy-interno',
+  password: 'Gatorade100@',
 } as const;
-
-export const AUTH_STORAGE_KEY = 'bravy-bpmn-session';
 
 export function credentialsMatch(username: string, password: string): boolean {
   return (
@@ -12,15 +15,11 @@ export function credentialsMatch(username: string, password: string): boolean {
   );
 }
 
-export function readSession(): boolean {
-  if (typeof window === 'undefined') return false;
-  return window.localStorage.getItem(AUTH_STORAGE_KEY) === '1';
+/** Cookie legível pelo middleware (sessão interna). */
+export function setSessionCookie(): void {
+  document.cookie = `${SESSION_COOKIE_NAME}=1; Path=/; Max-Age=${SESSION_MAX_AGE_SEC}; SameSite=Lax`;
 }
 
-export function writeSession(): void {
-  window.localStorage.setItem(AUTH_STORAGE_KEY, '1');
-}
-
-export function clearSession(): void {
-  window.localStorage.removeItem(AUTH_STORAGE_KEY);
+export function clearSessionCookie(): void {
+  document.cookie = `${SESSION_COOKIE_NAME}=; Path=/; Max-Age=0`;
 }

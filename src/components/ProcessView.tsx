@@ -194,7 +194,7 @@ export default function ProcessView() {
         <div className="flex items-center gap-4">
           <Link href="/" className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-900 font-medium">
             <ArrowLeft size={14} />
-            Voltar
+            Voltar aos fluxogramas
           </Link>
           <div className="h-4 w-px bg-zinc-200" />
           <div>
