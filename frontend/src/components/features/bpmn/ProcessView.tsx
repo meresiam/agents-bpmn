@@ -15,6 +15,7 @@ import ReactFlow, {
   Panel,
   Node,
   NodeDragHandler,
+  useReactFlow,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -84,15 +85,38 @@ function FlowCanvasWithOverlays({
   const [nodes, , onNodesChange] = useNodesState(allNodes as BpmnNode[]);
   const [edges, , onEdgesChange] = useEdgesState(edgesWithStyle);
   const flowRef = useRef<HTMLDivElement>(null);
+  const reactFlowInstance = useReactFlow();
+
+  const handlePaneClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (canvasMode !== 'note') return;
+      const bounds = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const flowPos = reactFlowInstance.project({
+        x: e.clientX - bounds.left,
+        y: e.clientY - bounds.top,
+      });
+      onNoteCanvasClick(flowPos.x, flowPos.y);
+    },
+    [canvasMode, onNoteCanvasClick, reactFlowInstance],
+  );
 
   return (
-    <div ref={flowRef} className="relative" style={{ width: '100%', height: '100%' }}>
+    <div
+      ref={flowRef}
+      className="relative"
+      style={{
+        width: '100%',
+        height: '100%',
+        cursor: canvasMode === 'note' ? 'copy' : canvasMode === 'comment' ? 'crosshair' : undefined,
+      }}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeDragStop={onNoteDragStop}
+        onPaneClick={handlePaneClick}
         nodeTypes={nodeTypes}
         fitView
         fitViewOptions={{ padding: 0.3, maxZoom: 1.5 }}
