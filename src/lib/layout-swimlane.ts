@@ -1,16 +1,35 @@
-import dagre from '@dagrejs/dagre';
 import { BpmnNode, BpmnEdge, BpmnNodeData, BpmnPoolNodeData } from './types';
 import { nodeDimensions } from './layout-metrics';
 
+// ─── Constants ────────────────────────────────────────────────────────────
+
 const POOL_NAME_COL = 44;
 const LANE_LABEL_COL = 118;
-/** Onde o fluxo (nós) começa em X, à direita do título do pool e dos nomes das raias */
 export const SWIMLANE_CONTENT_OFFSET_X = POOL_NAME_COL + LANE_LABEL_COL;
 const CONTENT_PADDING_TOP = 16;
-/** Altura mínima por raia: precisa caber tasks com label longo + ramos paralelos sem “achatar” demais o Y */
-const LANE_HEIGHT = 236;
-const BOTTOM_PADDING = 24;
+const LANE_VERT_PAD = 12;
+const NODE_GAP_Y = 18;
+const RANK_SEP = 80;
 const RIGHT_PADDING = 56;
+const BOTTOM_PADDING = 24;
+const MIN_EMPTY_LANE_H = 56;
+
+// ─── Internal types ───────────────────────────────────────────────────────
+
+interface ContentNode {
+  id: string;
+  type: string;
+  laneIndex: number;
+  w: number;
+  h: number;
+  rfNode: BpmnNode;
+}
+
+interface GridCell {
+  items: ContentNode[];
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────
 
 function isContentNode(n: BpmnNode): n is BpmnNode & { data: BpmnNodeData } {
   return n.type !== 'bpmnPool' && n.type !== 'group';
@@ -19,15 +38,252 @@ function isContentNode(n: BpmnNode): n is BpmnNode & { data: BpmnNodeData } {
 function resolveLane(data: BpmnNodeData, lanes: string[]): string {
   const key = data.lane ?? data.phase;
   if (key && lanes.includes(key)) return key;
-  if (key && !lanes.includes(key)) return lanes[0] ?? 'Geral';
   return lanes[0] ?? 'Geral';
 }
 
-/**
- * Layout BPMN 2.0: pool + raias horizontais.
- * X vem do dagre (LR); dentro de cada raia, preserva o Y relativo do dagre (ramos paralelos)
- * e aplica um passe para garantir espaçamento horizontal mínimo entre nós.
- */
+// ─── Phase 1: Build adjacency ────────────────────────────────────────────
+
+function buildAdjacency(nodeIds: Set<string>, edges: BpmnEdge[]) {
+  const adj = new Map<string, string[]>();
+  const pred = new Map<string, string[]>();
+  for (const id of nodeIds) {
+    adj.set(id, []);
+    pred.set(id, []);
+  }
+  for (const e of edges) {
+    if (!nodeIds.has(e.source) || !nodeIds.has(e.target)) continue;
+    adj.get(e.source)!.push(e.target);
+    pred.get(e.target)!.push(e.source);
+  }
+  return { adj, pred };
+}
+
+// ─── Phase 2: Rank assignment (longest-path with cycle handling) ─────────
+
+function computeRanks(
+  nodeIds: Set<string>,
+  adj: Map<string, string[]>,
+  pred: Map<string, string[]>
+): Map<string, number> {
+  // Kahn's topological sort
+  const inDeg = new Map<string, number>();
+  for (const id of nodeIds) inDeg.set(id, 0);
+  for (const [, succs] of adj) {
+    for (const s of succs) inDeg.set(s, (inDeg.get(s) ?? 0) + 1);
+  }
+  // Fix: recount using pred lengths
+  for (const id of nodeIds) inDeg.set(id, pred.get(id)!.length);
+
+  const queue: string[] = [];
+  for (const [id, d] of inDeg) {
+    if (d === 0) queue.push(id);
+  }
+
+  const topo: string[] = [];
+  const remaining = new Map(inDeg);
+  while (queue.length > 0) {
+    const node = queue.shift()!;
+    topo.push(node);
+    for (const succ of adj.get(node)!) {
+      const d = remaining.get(succ)! - 1;
+      remaining.set(succ, d);
+      if (d === 0) queue.push(succ);
+    }
+  }
+
+  // Cycle nodes: append any not yet visited
+  const visited = new Set(topo);
+  for (const id of nodeIds) {
+    if (!visited.has(id)) topo.push(id);
+  }
+
+  // Build position map for back-edge detection
+  const topoIdx = new Map<string, number>();
+  topo.forEach((id, i) => topoIdx.set(id, i));
+
+  // Longest-path
+  const ranks = new Map<string, number>();
+  for (const id of topo) {
+    let maxPredRank = -1;
+    for (const p of pred.get(id)!) {
+      // Skip back-edges
+      if ((topoIdx.get(p) ?? Infinity) >= (topoIdx.get(id) ?? 0)) continue;
+      maxPredRank = Math.max(maxPredRank, ranks.get(p) ?? 0);
+    }
+    ranks.set(id, maxPredRank + 1);
+  }
+
+  return ranks;
+}
+
+// ─── Phase 3: Build grid & order sub-rows ─────────────────────────────────
+
+function buildGrid(
+  nodes: ContentNode[],
+  ranks: Map<string, number>,
+  laneCount: number,
+  pred: Map<string, string[]>
+): { grid: Map<string, GridCell>; maxRank: number } {
+  const grid = new Map<string, GridCell>();
+  let maxRank = 0;
+
+  for (const node of nodes) {
+    const rank = ranks.get(node.id) ?? 0;
+    maxRank = Math.max(maxRank, rank);
+    const key = `${node.laneIndex},${rank}`;
+    let cell = grid.get(key);
+    if (!cell) {
+      cell = { items: [] };
+      grid.set(key, cell);
+    }
+    cell.items.push(node);
+  }
+
+  // Order sub-rows rank by rank using predecessor positions (barycenter)
+  const nodeYHint = new Map<string, number>();
+
+  for (let r = 0; r <= maxRank; r++) {
+    for (let l = 0; l < laneCount; l++) {
+      const cell = grid.get(`${l},${r}`);
+      if (!cell) continue;
+
+      if (cell.items.length > 1 && r > 0) {
+        // Sort by average predecessor Y-hint
+        cell.items.sort((a, b) => {
+          const aHints = pred.get(a.id)!.map((p) => nodeYHint.get(p)).filter((v): v is number => v !== undefined);
+          const bHints = pred.get(b.id)!.map((p) => nodeYHint.get(p)).filter((v): v is number => v !== undefined);
+          const aAvg = aHints.length > 0 ? aHints.reduce((s, v) => s + v, 0) / aHints.length : 0;
+          const bAvg = bHints.length > 0 ? bHints.reduce((s, v) => s + v, 0) / bHints.length : 0;
+          return aAvg - bAvg;
+        });
+      }
+
+      // Assign Y hints (sub-row index) for next rank's ordering
+      cell.items.forEach((item, i) => nodeYHint.set(item.id, l * 1000 + i));
+    }
+  }
+
+  return { grid, maxRank };
+}
+
+// ─── Phase 4: Geometry (predecessor-aware Y) ─────────────────────────────
+
+function stackHeight(items: ContentNode[]): number {
+  let h = 0;
+  for (let i = 0; i < items.length; i++) {
+    h += items[i].h;
+    if (i > 0) h += NODE_GAP_Y;
+  }
+  return h;
+}
+
+function computeGeometry(
+  grid: Map<string, GridCell>,
+  maxRank: number,
+  lanes: string[],
+  pred: Map<string, string[]>,
+  nodeHeightMap?: Map<string, number>
+) {
+  const laneCount = lanes.length;
+
+  // ── Column widths ───────────────────────────────────────────────────
+  const colWidths: number[] = [];
+  for (let r = 0; r <= maxRank; r++) {
+    let maxW = 0;
+    for (let l = 0; l < laneCount; l++) {
+      const cell = grid.get(`${l},${r}`);
+      if (cell) {
+        for (const item of cell.items) maxW = Math.max(maxW, item.w);
+      }
+    }
+    colWidths.push(maxW);
+  }
+
+  // ── Column X positions ──────────────────────────────────────────────
+  const colX: number[] = [];
+  let x = SWIMLANE_CONTENT_OFFSET_X + 20;
+  for (let r = 0; r <= maxRank; r++) {
+    colX.push(x);
+    x += colWidths[r] + RANK_SEP;
+  }
+
+  // ── Lane heights ────────────────────────────────────────────────────
+  const laneHeights: number[] = [];
+  for (let l = 0; l < laneCount; l++) {
+    let maxStackH = 0;
+    let hasCells = false;
+    for (let r = 0; r <= maxRank; r++) {
+      const cell = grid.get(`${l},${r}`);
+      if (!cell) continue;
+      hasCells = true;
+      maxStackH = Math.max(maxStackH, stackHeight(cell.items));
+    }
+    laneHeights.push(hasCells ? maxStackH + 2 * LANE_VERT_PAD : MIN_EMPTY_LANE_H);
+  }
+
+  // ── Lane Y offsets ──────────────────────────────────────────────────
+  const laneYOffsets: number[] = [];
+  let y = CONTENT_PADDING_TOP;
+  for (const h of laneHeights) {
+    laneYOffsets.push(y);
+    y += h;
+  }
+
+  // ── Position nodes rank-by-rank (predecessor-aware Y) ───────────────
+  const positions = new Map<string, { x: number; y: number }>();
+
+  for (let r = 0; r <= maxRank; r++) {
+    for (let l = 0; l < laneCount; l++) {
+      const cell = grid.get(`${l},${r}`);
+      if (!cell) continue;
+
+      const laneTop = laneYOffsets[l];
+      const laneH = laneHeights[l];
+      const colCenter = colX[r] + colWidths[r] / 2;
+      const sh = stackHeight(cell.items);
+
+      // Compute target Y center from predecessors
+      let targetCenterY: number | null = null;
+      if (r > 0) {
+        const predYs: number[] = [];
+        for (const item of cell.items) {
+          for (const p of pred.get(item.id) ?? []) {
+            const pos = positions.get(p);
+            if (pos) {
+              const pH = nodeHeightMap?.get(p) ?? 100;
+              predYs.push(pos.y + pH / 2);
+            }
+          }
+        }
+        if (predYs.length > 0) {
+          targetCenterY = predYs.reduce((s, v) => s + v, 0) / predYs.length;
+        }
+      }
+
+      // Default: center in lane
+      const laneCenterY = laneTop + laneH / 2;
+      const centerY = targetCenterY ?? laneCenterY;
+
+      // Clamp stack to stay within lane bounds
+      const minTop = laneTop + LANE_VERT_PAD;
+      const maxTop = laneTop + laneH - sh - LANE_VERT_PAD;
+      let startY = centerY - sh / 2;
+      startY = Math.max(minTop, Math.min(startY, maxTop));
+
+      // Place each node in the stack
+      let nodeY = startY;
+      for (const item of cell.items) {
+        positions.set(item.id, { x: colCenter - item.w / 2, y: nodeY });
+        nodeY += item.h + NODE_GAP_Y;
+      }
+    }
+  }
+
+  return { positions, laneHeights, colX, colWidths };
+}
+
+// ─── Main entry ───────────────────────────────────────────────────────────
+
 export function getSwimlaneLayoutedElements(
   nodes: BpmnNode[],
   edges: BpmnEdge[],
@@ -35,150 +291,63 @@ export function getSwimlaneLayoutedElements(
     poolName: string;
     lanes: string[];
     direction?: 'LR' | 'TB';
-    /** Id único do nó React Flow da piscina (multi-pool precisa de ids distintos). */
     poolDomId?: string;
   }
 ): { nodes: BpmnNode[]; edges: BpmnEdge[] } {
-  const { poolName, lanes, direction = 'LR', poolDomId = '__bpmn_pool__' } = options;
+  const { poolName, lanes, poolDomId = '__bpmn_pool__' } = options;
   if (lanes.length === 0) {
     throw new Error('swimlane: informe ao menos uma raia em graph.lanes');
   }
 
-  const contentNodes = nodes.filter(isContentNode);
-  const dagreGraph = new dagre.graphlib.Graph();
-  dagreGraph.setDefaultEdgeLabel(() => ({}));
-  dagreGraph.setGraph({
-    rankdir: direction,
-    nodesep: 72,
-    ranksep: 112,
-    edgesep: 36,
-    marginx: 32,
-    marginy: 32,
-    ranker: 'network-simplex',
-  });
-
-  for (const node of contentNodes) {
-    const t = node.type || 'activity';
-    const { w, h } = nodeDimensions(t);
-    dagreGraph.setNode(node.id, { width: w, height: h });
-  }
-
-  for (const edge of edges) {
-    if (dagreGraph.hasNode(edge.source) && dagreGraph.hasNode(edge.target)) {
-      dagreGraph.setEdge(edge.source, edge.target);
-    }
-  }
-
-  dagre.layout(dagreGraph);
-
-  type LaneItem = {
-    node: BpmnNode;
-    laneIndex: number;
-    x: number;
-    dagreYCenter: number;
-    w: number;
-    h: number;
-  };
-
-  let minX = Infinity;
-  const laneItems: LaneItem[] = contentNodes.map((node) => {
-    const pos = dagreGraph.node(node.id);
-    const t = node.type || 'activity';
-    const { w, h } = nodeDimensions(t);
-    const x = pos.x - w / 2;
-    minX = Math.min(minX, x);
-    const d = node.data as BpmnNodeData;
+  // Build content nodes
+  const contentNodes: ContentNode[] = nodes.filter(isContentNode).map((n) => {
+    const d = n.data as BpmnNodeData;
     const laneName = resolveLane(d, lanes);
     const laneIndex = Math.max(0, lanes.indexOf(laneName));
-    return {
-      node,
-      laneIndex,
-      x,
-      dagreYCenter: pos.y,
-      w,
-      h,
-    };
+    const { w, h } = nodeDimensions(n.type || 'activity');
+    return { id: n.id, type: n.type || 'activity', laneIndex, w, h, rfNode: n };
   });
 
-  const shiftX = SWIMLANE_CONTENT_OFFSET_X - (Number.isFinite(minX) ? minX : 0);
-  for (const item of laneItems) {
-    item.x += shiftX;
-  }
+  const nodeIds = new Set(contentNodes.map((n) => n.id));
 
-  const LANE_VERT_PAD = 14;
-  const byLane = new Map<number, LaneItem[]>();
-  for (const item of laneItems) {
-    const list = byLane.get(item.laneIndex) ?? [];
-    list.push(item);
-    byLane.set(item.laneIndex, list);
-  }
+  // Phase 1
+  const { adj, pred } = buildAdjacency(nodeIds, edges);
 
-  for (const [, items] of byLane) {
-    const yCenters = items.map((i) => i.dagreYCenter);
-    const minY = Math.min(...yCenters);
-    const maxY = Math.max(...yCenters);
-    const spreadY = maxY - minY;
+  // Phase 2
+  const ranks = computeRanks(nodeIds, adj, pred);
 
-    for (const item of items) {
-      let yRel: number;
-      if (spreadY < 1e-6) {
-        yRel = (LANE_HEIGHT - item.h) / 2;
-      } else {
-        const t = (item.dagreYCenter - minY) / spreadY;
-        const band = LANE_HEIGHT - 2 * LANE_VERT_PAD - item.h;
-        yRel = LANE_VERT_PAD + t * Math.max(0, band);
-      }
-      yRel = Math.max(
-        LANE_VERT_PAD / 2,
-        Math.min(yRel, LANE_HEIGHT - item.h - LANE_VERT_PAD / 2)
-      );
-      item.node = {
-        ...item.node,
-        position: {
-          x: item.x,
-          y: CONTENT_PADDING_TOP + item.laneIndex * LANE_HEIGHT + yRel,
-        },
-      };
-    }
+  // Phase 3
+  const { grid, maxRank } = buildGrid(contentNodes, ranks, lanes.length, pred);
 
-    items.sort((a, b) => {
-      const dx = a.node.position.x - b.node.position.x;
-      if (Math.abs(dx) < 0.5) return a.node.id.localeCompare(b.node.id);
-      return dx;
-    });
-    const MIN_GAP = 44;
-    let prevRight = -Infinity;
-    for (const item of items) {
-      let x = item.node.position.x;
-      if (x < prevRight + MIN_GAP) {
-        x = prevRight + MIN_GAP;
-      }
-      item.node = {
-        ...item.node,
-        position: { ...item.node.position, x },
-      };
-      prevRight = x + item.w;
-    }
-  }
+  // Build height lookup for predecessor-aware positioning
+  const nodeHeightMap = new Map<string, number>();
+  for (const cn of contentNodes) nodeHeightMap.set(cn.id, cn.h);
 
-  const withLanes: BpmnNode[] = laneItems.map((item) => item.node);
+  // Phase 4
+  const { positions, laneHeights } = computeGeometry(grid, maxRank, lanes, pred, nodeHeightMap);
 
+  // Build output nodes
+  const outputNodes: BpmnNode[] = contentNodes.map((cn) => ({
+    ...cn.rfNode,
+    position: positions.get(cn.id) ?? { x: 0, y: 0 },
+  }));
+
+  // Pool dimensions
   let maxRight = SWIMLANE_CONTENT_OFFSET_X;
-  let maxBottom = CONTENT_PADDING_TOP + lanes.length * LANE_HEIGHT + BOTTOM_PADDING;
-  for (const node of withLanes) {
-    const t = node.type || 'activity';
-    const { w, h } = nodeDimensions(t);
-    maxRight = Math.max(maxRight, node.position.x + w);
-    maxBottom = Math.max(maxBottom, node.position.y + h + BOTTOM_PADDING / 2);
+  for (const cn of contentNodes) {
+    const pos = positions.get(cn.id);
+    if (pos) maxRight = Math.max(maxRight, pos.x + cn.w);
   }
+
+  const totalLanesH = laneHeights.reduce((s, h) => s + h, 0);
   const poolWidth = maxRight + RIGHT_PADDING;
-  const poolHeight = Math.max(maxBottom, CONTENT_PADDING_TOP + lanes.length * LANE_HEIGHT + BOTTOM_PADDING);
+  const poolHeight = CONTENT_PADDING_TOP + totalLanesH + BOTTOM_PADDING;
 
   const poolData: BpmnPoolNodeData = {
     nodeType: 'bpmnPool',
     poolName,
     lanes,
-    laneHeight: LANE_HEIGHT,
+    laneHeights,
     poolNameCol: POOL_NAME_COL,
     laneLabelCol: LANE_LABEL_COL,
     contentPaddingTop: CONTENT_PADDING_TOP,
@@ -195,15 +364,8 @@ export function getSwimlaneLayoutedElements(
     focusable: false,
     zIndex: -1,
     data: poolData,
-    style: {
-      width: poolWidth,
-      height: poolHeight,
-      zIndex: -1,
-    },
+    style: { width: poolWidth, height: poolHeight, zIndex: -1 },
   };
 
-  return {
-    nodes: [poolNode, ...withLanes],
-    edges,
-  };
+  return { nodes: [poolNode, ...outputNodes], edges };
 }

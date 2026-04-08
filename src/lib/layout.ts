@@ -2,6 +2,7 @@ import dagre from '@dagrejs/dagre';
 import { BpmnNode, BpmnEdge, BpmnNodeData, ProcessGraphJson } from './types';
 import { nodeDimensions } from './layout-metrics';
 import { getSwimlaneLayoutedElements } from './layout-swimlane';
+import { assignEdgeHandles } from './edge-routing';
 
 const POOL_STACK_GAP = 56;
 
@@ -149,15 +150,18 @@ export function layoutProcessGraph(
   edges: BpmnEdge[]
 ): { nodes: BpmnNode[]; edges: BpmnEdge[] } {
   const direction = graph.layout ?? 'LR';
+  let result: { nodes: BpmnNode[]; edges: BpmnEdge[] };
   if (graph.pools && graph.pools.length > 0) {
-    return layoutMultiPoolProcessGraph(graph, nodes, edges);
-  }
-  if (graph.lanes && graph.lanes.length > 0) {
-    return getSwimlaneLayoutedElements(nodes, edges, {
+    result = layoutMultiPoolProcessGraph(graph, nodes, edges);
+  } else if (graph.lanes && graph.lanes.length > 0) {
+    result = getSwimlaneLayoutedElements(nodes, edges, {
       poolName: graph.pool?.trim() || 'Pool',
       lanes: graph.lanes,
       direction,
     });
+  } else {
+    result = getLayoutedElements(nodes, edges, direction);
   }
-  return getLayoutedElements(nodes, edges, direction);
+  // Smart handle assignment: route edges through optimal handles based on node positions
+  return { nodes: result.nodes, edges: assignEdgeHandles(result.nodes, result.edges) };
 }

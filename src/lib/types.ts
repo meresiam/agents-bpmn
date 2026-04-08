@@ -60,7 +60,10 @@ export interface BpmnPoolNodeData {
   nodeType: 'bpmnPool';
   poolName: string;
   lanes: string[];
-  laneHeight: number;
+  /** @deprecated use laneHeights */
+  laneHeight?: number;
+  /** Altura individual de cada raia (mesmo índice de `lanes`) */
+  laneHeights: number[];
   poolNameCol: number;
   laneLabelCol: number;
   contentPaddingTop: number;
