@@ -80,6 +80,14 @@ body {
   box-shadow: theme('boxShadow.sm') !important;
 }
 
+/* Force cursor in comment/note modes over ReactFlow pane */
+.cursor-copy-mode .react-flow__pane {
+  cursor: copy !important;
+}
+.cursor-crosshair-mode .react-flow__pane {
+  cursor: crosshair !important;
+}
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;

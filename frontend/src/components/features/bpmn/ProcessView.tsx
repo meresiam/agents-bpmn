@@ -90,26 +90,21 @@ function FlowCanvasWithOverlays({
   const handlePaneClick = useCallback(
     (e: React.MouseEvent) => {
       if (canvasMode !== 'note') return;
-      const bounds = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const rect = flowRef.current?.getBoundingClientRect();
+      if (!rect) return;
       const flowPos = reactFlowInstance.project({
-        x: e.clientX - bounds.left,
-        y: e.clientY - bounds.top,
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
       });
       onNoteCanvasClick(flowPos.x, flowPos.y);
     },
     [canvasMode, onNoteCanvasClick, reactFlowInstance],
   );
 
+  const modeClass = canvasMode === 'note' ? 'cursor-copy-mode' : canvasMode === 'comment' ? 'cursor-crosshair-mode' : '';
+
   return (
-    <div
-      ref={flowRef}
-      className="relative"
-      style={{
-        width: '100%',
-        height: '100%',
-        cursor: canvasMode === 'note' ? 'copy' : canvasMode === 'comment' ? 'crosshair' : undefined,
-      }}
-    >
+    <div ref={flowRef} className={`relative ${modeClass}`} style={{ width: '100%', height: '100%' }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
