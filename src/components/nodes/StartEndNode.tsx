@@ -1,9 +1,16 @@
 'use client';
 
 import { memo } from 'react';
+import { motion } from 'framer-motion';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { BpmnNodeData } from '@/lib/types';
 import { inferBpmnEvent } from '@/lib/bpmn-infer';
+
+const nodeMotion = {
+  initial: { opacity: 0, scale: 0.5 },
+  animate: { opacity: 1, scale: 1 },
+  transition: { duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] as const },
+};
 
 /** BPMN 2.0: Start Event (círculo fino, só saída) e End Event (círculo grosso, só entrada) */
 function StartEndNodeComponent({ data, selected, id }: NodeProps<BpmnNodeData>) {
@@ -17,10 +24,11 @@ function StartEndNodeComponent({ data, selected, id }: NodeProps<BpmnNodeData>) 
   const hasLabel = data.label && !genericLabels.includes(data.label.trim().toLowerCase());
 
   return (
-    <div
+    <motion.div
       className="relative flex items-center"
       style={{ height: size }}
       title={isEnd ? 'End Event (BPMN)' : 'Start Event (BPMN)'}
+      {...nodeMotion}
     >
       {hasLabel && !isEnd && (
         <span
@@ -71,7 +79,7 @@ function StartEndNodeComponent({ data, selected, id }: NodeProps<BpmnNodeData>) 
           {data.label}
         </span>
       )}
-    </div>
+    </motion.div>
   );
 }
 

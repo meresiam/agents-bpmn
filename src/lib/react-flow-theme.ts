@@ -31,6 +31,7 @@ export function withBpmnEdgeStyle<E extends Edge>(edges: E[]): E[] {
         width: 12,
         height: 12,
       },
+      className: crossPool ? 'bpmn-edge-flow' : undefined,
       style: {
         ...baseStyle,
         stroke: diagramInline.edge,

@@ -1,8 +1,15 @@
 'use client';
 
 import { memo } from 'react';
+import { motion } from 'framer-motion';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { BpmnNodeData, BpmnGatewayKind } from '@/lib/types';
+
+const nodeMotion = {
+  initial: { opacity: 0, scale: 0.85 },
+  animate: { opacity: 1, scale: 1 },
+  transition: { duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] as const },
+};
 
 function DecisionNodeComponent({ data, selected }: NodeProps<BpmnNodeData>) {
   const size = 48;
@@ -15,7 +22,7 @@ function DecisionNodeComponent({ data, selected }: NodeProps<BpmnNodeData>) {
         : 'Inclusive Gateway (OR)';
 
   return (
-    <div className="relative flex flex-col items-center" title={gwTitle}>
+    <motion.div className="relative flex flex-col items-center" title={gwTitle} {...nodeMotion}>
       <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
         <Handle
           type="target"
@@ -77,7 +84,7 @@ function DecisionNodeComponent({ data, selected }: NodeProps<BpmnNodeData>) {
           {data.label}
         </span>
       ) : null}
-    </div>
+    </motion.div>
   );
 }
 

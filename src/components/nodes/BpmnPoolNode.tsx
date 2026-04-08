@@ -2,10 +2,10 @@
 
 import { BpmnPoolNodeData } from "@/lib/types";
 import { memo, useMemo } from "react";
+import { motion } from "framer-motion";
 import { NodeProps } from "reactflow";
 
 const BORDER = "border-zinc-300";
-const BORDER_W = "border-[1px]";
 
 function BpmnPoolNodeComponent({ data }: NodeProps<BpmnPoolNodeData>) {
   const {
@@ -30,9 +30,12 @@ function BpmnPoolNodeComponent({ data }: NodeProps<BpmnPoolNodeData>) {
   }, [laneHeights, contentPaddingTop]);
 
   return (
-    <div
+    <motion.div
       className={`pointer-events-none select-none relative bg-white border-2 ${BORDER} rounded-xl shadow-md overflow-hidden`}
       style={{ width: poolWidth, height: poolHeight, boxSizing: "border-box" }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
     >
       {/* Lane backgrounds — full width including label area */}
       {lanes.map((_, i) => (
@@ -54,8 +57,8 @@ function BpmnPoolNodeComponent({ data }: NodeProps<BpmnPoolNodeData>) {
         return (
           <div
             key={`hline-${i}`}
-            className={`absolute left-0 w-full pointer-events-none border-t-${BORDER_W.slice(8, -1)} ${BORDER}`}
-            style={{ top: laneYOffsets[i], borderTopWidth: 1 }}
+            className={`absolute left-0 w-full pointer-events-none border-t ${BORDER}`}
+            style={{ top: laneYOffsets[i] }}
           />
         );
       })}
@@ -100,7 +103,7 @@ function BpmnPoolNodeComponent({ data }: NodeProps<BpmnPoolNodeData>) {
           </div>
         ))}
       </div>
-    </div>
+    </motion.div>
   );
 }
 

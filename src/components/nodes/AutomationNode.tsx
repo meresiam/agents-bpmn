@@ -1,9 +1,16 @@
 'use client';
 
 import { memo } from 'react';
+import { motion } from 'framer-motion';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { BpmnNodeData } from '@/lib/types';
 import { BpmnTaskMarker } from './BpmnTaskMarker';
+
+const nodeMotion = {
+  initial: { opacity: 0, scale: 0.92 },
+  animate: { opacity: 1, scale: 1 },
+  transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] as const },
+};
 
 /** Tarefa automatizada — BPMN 2.0 como Service Task por padrão */
 function AutomationNodeComponent({ data, selected }: NodeProps<BpmnNodeData>) {
@@ -11,7 +18,7 @@ function AutomationNodeComponent({ data, selected }: NodeProps<BpmnNodeData>) {
   const showMarker = Boolean(taskKind && taskKind !== 'task');
 
   return (
-    <div className="relative">
+    <motion.div className="relative" {...nodeMotion}>
       <Handle
         type="target"
         position={Position.Left}
@@ -46,7 +53,7 @@ function AutomationNodeComponent({ data, selected }: NodeProps<BpmnNodeData>) {
       <Handle type="target" position={Position.Top} id="top" className="!w-[1px] !h-[1px] !opacity-0 !min-w-0 !min-h-0" />
       <Handle type="source" position={Position.Top} id="top-out" className="!w-[1px] !h-[1px] !opacity-0 !min-w-0 !min-h-0" />
       <Handle type="source" position={Position.Bottom} id="bottom" className="!w-[1px] !h-[1px] !opacity-0 !min-w-0 !min-h-0" />
-    </div>
+    </motion.div>
   );
 }
 

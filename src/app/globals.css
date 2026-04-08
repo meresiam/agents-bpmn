@@ -46,6 +46,14 @@ body {
   stroke-linejoin: round;
 }
 
+/* Animated dashed edges — cross-pool connections */
+@keyframes bpmn-dash-flow {
+  to { stroke-dashoffset: -24; }
+}
+.bpmn-edge-flow .react-flow__edge-path {
+  animation: bpmn-dash-flow 0.8s linear infinite;
+}
+
 .react-flow__controls {
   border: 1px solid theme('colors.zinc.200') !important;
   border-radius: theme('borderRadius.bpmn') !important;

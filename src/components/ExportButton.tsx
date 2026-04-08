@@ -1,8 +1,6 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import { toPng } from 'html-to-image';
-import jsPDF from 'jspdf';
 import { Download, Image, FileText, Loader2 } from 'lucide-react';
 import { ZINC } from '@/lib/diagram-tokens';
 
@@ -31,6 +29,7 @@ export function ExportButton({ flowRef, filename = 'fluxograma' }: ExportButtonP
     if (!viewport) return;
     setLoading(true);
     try {
+      const { toPng } = await import('html-to-image');
       const dataUrl = await toPng(viewport, { backgroundColor: ZINC[100], pixelRatio: 2, filter: filterNode });
       const link = document.createElement('a');
       link.download = `${filename}.png`;
@@ -49,6 +48,8 @@ export function ExportButton({ flowRef, filename = 'fluxograma' }: ExportButtonP
     if (!viewport) return;
     setLoading(true);
     try {
+      const { toPng } = await import('html-to-image');
+      const { default: jsPDF } = await import('jspdf');
       const dataUrl = await toPng(viewport, { backgroundColor: ZINC[100], pixelRatio: 2, filter: filterNode });
       const img = new window.Image();
       img.src = dataUrl;
