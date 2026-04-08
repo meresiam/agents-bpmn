@@ -3,7 +3,7 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Code2, Workflow, Maximize2, Minimize2, Copy, Check, MessageSquare, Share2 } from 'lucide-react';
+import { ArrowLeft, Code2, Workflow, Maximize2, Minimize2, Copy, Check, MessageCircle, Share2 } from 'lucide-react';
 import ReactFlow, {
   Background,
   Controls,
@@ -20,8 +20,14 @@ import { graphToReactFlow } from '@/lib/parse-process-graph';
 import { layoutProcessGraph } from '@/lib/layout';
 import { BpmnNode, BpmnEdge, formatProcessGraphPoolLabel } from '@/lib/types';
 import { getProcess, ProcessDetail } from '@/services/process.service';
+import {
+  getThreads,
+  createThread,
+  CommentThread,
+} from '@/services/comment.service';
 import { useAuth } from '@/contexts/auth.context';
 import { CommentsPanel } from '@/components/shared/CommentsPanel';
+import { CommentPins } from './CommentPins';
 import { ActivityNode } from './nodes/ActivityNode';
 import { DecisionNode } from './nodes/DecisionNode';
 import { StartEndNode } from './nodes/StartEndNode';
@@ -43,21 +49,30 @@ const nodeTypes = {
   bpmnPool: BpmnPoolNode,
 };
 
-function FlowCanvas({
+function FlowCanvasWithComments({
   initialNodes,
   initialEdges,
   title,
   slug,
   pool,
+  threads,
+  commentMode,
+  activeThreadId,
+  onCanvasClick,
+  onPinClick,
 }: {
   initialNodes: BpmnNode[];
   initialEdges: BpmnEdge[];
   title: string;
   slug: string;
   pool?: string;
+  threads: CommentThread[];
+  commentMode: boolean;
+  activeThreadId: string | null;
+  onCanvasClick: (x: number, y: number) => void;
+  onPinClick: (thread: CommentThread) => void;
 }) {
   const edgesWithStyle = useMemo(() => withBpmnEdgeStyle(initialEdges), [initialEdges]);
-
   const [nodes, , onNodesChange] = useNodesState(initialNodes);
   const [edges, , onEdgesChange] = useEdgesState(edgesWithStyle);
   const flowRef = useRef<HTMLDivElement>(null);
@@ -111,6 +126,25 @@ function FlowCanvas({
           />
         </Panel>
       </ReactFlow>
+
+      {/* Comment pins overlay */}
+      <CommentPins
+        threads={threads}
+        commentMode={commentMode}
+        onCanvasClick={onCanvasClick}
+        onPinClick={onPinClick}
+        activeThreadId={activeThreadId}
+      />
+
+      {/* Comment mode indicator */}
+      {commentMode && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 bg-zinc-900 text-white px-4 py-2 rounded-full shadow-lg text-xs font-medium flex items-center gap-2">
+          <MessageCircle size={14} />
+          Clique no diagrama para comentar
+          <kbd className="px-1.5 py-0.5 bg-zinc-700 rounded text-[10px] font-mono ml-1">ESC</kbd>
+        </div>
+      )}
+
       <LaserPointerLayer containerRef={flowRef} />
     </div>
   );
@@ -128,8 +162,15 @@ export default function ProcessView() {
   const [fullscreen, setFullscreen] = useState(false);
   const [showCode, setShowCode] = useState(false);
   const [showComments, setShowComments] = useState(false);
+  const [commentMode, setCommentMode] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+
+  // Comment threads
+  const [threads, setThreads] = useState<CommentThread[]>([]);
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
+  const [newThreadPrompt, setNewThreadPrompt] = useState<{ x: number; y: number } | null>(null);
+  const [newComment, setNewComment] = useState('');
 
   const handleShare = useCallback(() => {
     const shareUrl = `${window.location.origin}/share/${processId}`;
@@ -138,12 +179,12 @@ export default function ProcessView() {
     window.setTimeout(() => setShareCopied(false), 2000);
   }, [processId]);
 
+  // Auth redirect
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      router.push('/login');
-    }
+    if (!authLoading && !isAuthenticated) router.push('/login');
   }, [authLoading, isAuthenticated, router]);
 
+  // Load process
   useEffect(() => {
     if (!processId || !isAuthenticated) return;
     setLoading(true);
@@ -152,6 +193,65 @@ export default function ProcessView() {
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, [processId, isAuthenticated]);
+
+  // Load threads
+  const loadThreads = useCallback(() => {
+    if (!processId || !isAuthenticated) return;
+    getThreads(processId).then(setThreads).catch(console.error);
+  }, [processId, isAuthenticated]);
+
+  useEffect(() => { loadThreads(); }, [loadThreads]);
+
+  // Keyboard: C to toggle comment mode, ESC to exit
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === 'c' || e.key === 'C') {
+        if (!e.metaKey && !e.ctrlKey) {
+          setCommentMode((prev) => {
+            const next = !prev;
+            if (next) setShowComments(true);
+            return next;
+          });
+        }
+      }
+      if (e.key === 'Escape') {
+        setCommentMode(false);
+        setNewThreadPrompt(null);
+      }
+    }
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, []);
+
+  // Handle canvas click in comment mode
+  const handleCanvasClick = useCallback((x: number, y: number) => {
+    setNewThreadPrompt({ x, y });
+    setNewComment('');
+    setShowComments(true);
+  }, []);
+
+  // Create new thread
+  const handleCreateThread = useCallback(async () => {
+    if (!newThreadPrompt || !newComment.trim() || !processId) return;
+    try {
+      const thread = await createThread(processId, newThreadPrompt.x, newThreadPrompt.y, newComment.trim());
+      setThreads((prev) => [...prev, thread]);
+      setActiveThreadId(thread.id);
+      setNewThreadPrompt(null);
+      setNewComment('');
+      setCommentMode(false);
+    } catch {
+      // silently fail
+    }
+  }, [newThreadPrompt, newComment, processId]);
+
+  // Pin click
+  const handlePinClick = useCallback((thread: CommentThread) => {
+    setActiveThreadId(thread.id);
+    setShowComments(true);
+    setNewThreadPrompt(null);
+  }, []);
 
   const handleCopyGraphJson = useCallback(() => {
     if (!proc) return;
@@ -165,6 +265,8 @@ export default function ProcessView() {
     const { nodes: raw, edges: rawEdges } = graphToReactFlow(proc.graph);
     return layoutProcessGraph(proc.graph, raw, rawEdges);
   }, [proc]);
+
+  const unresolvedCount = threads.filter((t) => !t.resolved).length;
 
   if (authLoading || loading) {
     return (
@@ -206,12 +308,17 @@ export default function ProcessView() {
           </button>
         </div>
         <ReactFlowProvider>
-          <FlowCanvas
+          <FlowCanvasWithComments
             initialNodes={nodes}
             initialEdges={edges}
             title={proc.title}
             slug={proc.slug}
             pool={formatProcessGraphPoolLabel(proc.graph) ?? proc.graph.pool}
+            threads={threads}
+            commentMode={commentMode}
+            activeThreadId={activeThreadId}
+            onCanvasClick={handleCanvasClick}
+            onPinClick={handlePinClick}
           />
         </ReactFlowProvider>
       </div>
@@ -244,27 +351,36 @@ export default function ProcessView() {
             }`}
           >
             {shareCopied ? (
-              <>
-                <Check size={12} />
-                Link copiado!
-              </>
+              <><Check size={12} /> Link copiado!</>
             ) : (
-              <>
-                <Share2 size={12} />
-                Compartilhar
-              </>
+              <><Share2 size={12} /> Compartilhar</>
             )}
           </button>
           <button
-            onClick={() => setShowComments(!showComments)}
+            onClick={() => {
+              setCommentMode((prev) => {
+                const next = !prev;
+                if (next) setShowComments(true);
+                return next;
+              });
+            }}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-bpmn text-xs font-semibold border transition-all ${
-              showComments
-                ? 'bg-zinc-100 text-zinc-900 border-zinc-300 shadow-sm'
-                : 'text-zinc-500 border-zinc-200 hover:bg-zinc-100'
+              commentMode
+                ? 'bg-zinc-900 text-white border-zinc-900'
+                : showComments
+                  ? 'bg-zinc-100 text-zinc-900 border-zinc-300 shadow-sm'
+                  : 'text-zinc-500 border-zinc-200 hover:bg-zinc-100'
             }`}
           >
-            <MessageSquare size={12} />
+            <MessageCircle size={12} />
             Comentarios
+            {unresolvedCount > 0 && (
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                commentMode ? 'bg-white text-zinc-900' : 'bg-zinc-900 text-white'
+              }`}>
+                {unresolvedCount}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setShowCode(!showCode)}
@@ -300,15 +416,9 @@ export default function ProcessView() {
                 className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-sans font-semibold text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors"
               >
                 {codeCopied ? (
-                  <>
-                    <Check size={11} className="text-green-500" aria-hidden />
-                    Copiado
-                  </>
+                  <><Check size={11} className="text-green-500" aria-hidden /> Copiado</>
                 ) : (
-                  <>
-                    <Copy size={11} aria-hidden />
-                    Copiar
-                  </>
+                  <><Copy size={11} aria-hidden /> Copiar</>
                 )}
               </button>
             </div>
@@ -318,20 +428,64 @@ export default function ProcessView() {
           </div>
         )}
 
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, position: 'relative' }}>
           <ReactFlowProvider>
-            <FlowCanvas
+            <FlowCanvasWithComments
               initialNodes={nodes}
               initialEdges={edges}
               title={proc.title}
               slug={proc.slug}
               pool={formatProcessGraphPoolLabel(proc.graph) ?? proc.graph.pool}
+              threads={threads}
+              commentMode={commentMode}
+              activeThreadId={activeThreadId}
+              onCanvasClick={handleCanvasClick}
+              onPinClick={handlePinClick}
             />
           </ReactFlowProvider>
+
+          {/* New thread input popup */}
+          {newThreadPrompt && (
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 bg-white border border-zinc-200 rounded-bpmn shadow-xl p-3 w-80">
+              <p className="text-[11px] font-semibold text-zinc-700 mb-2">Novo comentario</p>
+              <form
+                onSubmit={(e) => { e.preventDefault(); handleCreateThread(); }}
+                className="flex gap-2"
+              >
+                <input
+                  type="text"
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  placeholder="Escreva seu comentario..."
+                  autoFocus
+                  className="flex-1 px-3 py-2 text-xs border border-zinc-200 rounded-bpmn bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                />
+                <button
+                  type="submit"
+                  disabled={!newComment.trim()}
+                  className="px-3 py-2 bg-zinc-900 text-white rounded-bpmn hover:bg-zinc-800 transition-colors disabled:opacity-50"
+                >
+                  Enviar
+                </button>
+              </form>
+              <button
+                type="button"
+                onClick={() => setNewThreadPrompt(null)}
+                className="text-[10px] text-zinc-400 hover:text-zinc-700 mt-1"
+              >
+                Cancelar
+              </button>
+            </div>
+          )}
         </div>
 
         {showComments && (
-          <CommentsPanel processId={proc.id} />
+          <CommentsPanel
+            threads={threads}
+            activeThreadId={activeThreadId}
+            onSelectThread={setActiveThreadId}
+            onThreadUpdated={loadThreads}
+          />
         )}
       </div>
     </div>
