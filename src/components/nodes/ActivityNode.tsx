@@ -41,6 +41,10 @@ function ActivityNodeComponent({ data, selected }: NodeProps<BpmnNodeData>) {
         position={Position.Right}
         className="!w-2 !h-2 !bg-white !border-[1.5px] !border-zinc-800"
       />
+      {/* Invisible directional handles for smart edge routing */}
+      <Handle type="target" position={Position.Top} id="top" className="!w-[1px] !h-[1px] !opacity-0 !min-w-0 !min-h-0" />
+      <Handle type="source" position={Position.Top} id="top-out" className="!w-[1px] !h-[1px] !opacity-0 !min-w-0 !min-h-0" />
+      <Handle type="source" position={Position.Bottom} id="bottom" className="!w-[1px] !h-[1px] !opacity-0 !min-w-0 !min-h-0" />
     </div>
   );
 }

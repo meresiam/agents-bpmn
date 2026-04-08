@@ -1,6 +1,6 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { NodeProps } from 'reactflow';
 import { BpmnPoolNodeData } from '@/lib/types';
 
@@ -12,7 +12,7 @@ function BpmnPoolNodeComponent({ data }: NodeProps<BpmnPoolNodeData>) {
   const {
     poolName,
     lanes,
-    laneHeight,
+    laneHeights,
     poolNameCol,
     laneLabelCol,
     contentPaddingTop,
@@ -21,6 +21,17 @@ function BpmnPoolNodeComponent({ data }: NodeProps<BpmnPoolNodeData>) {
   } = data;
 
   const labelStripWidth = poolNameCol + laneLabelCol;
+
+  /** Cumulative Y offsets for each lane */
+  const laneYOffsets = useMemo(() => {
+    const offsets: number[] = [];
+    let y = contentPaddingTop;
+    for (const h of laneHeights) {
+      offsets.push(y);
+      y += h;
+    }
+    return offsets;
+  }, [laneHeights, contentPaddingTop]);
 
   return (
     <div
@@ -33,7 +44,7 @@ function BpmnPoolNodeComponent({ data }: NodeProps<BpmnPoolNodeData>) {
     >
       {lanes.map((_, i) => {
         if (i === 0) return null;
-        const y = contentPaddingTop + i * laneHeight;
+        const y = laneYOffsets[i];
         return (
           <div
             key={`hline-${i}`}
@@ -70,8 +81,8 @@ function BpmnPoolNodeComponent({ data }: NodeProps<BpmnPoolNodeData>) {
               i < lanes.length - 1 ? 'border-b border-zinc-600' : ''
             }`}
             style={{
-              top: contentPaddingTop + i * laneHeight,
-              height: laneHeight,
+              top: laneYOffsets[i],
+              height: laneHeights[i],
               width: laneLabelCol,
             }}
           >
