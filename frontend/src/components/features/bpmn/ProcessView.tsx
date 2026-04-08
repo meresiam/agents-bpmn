@@ -3,7 +3,7 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Code2, Workflow, Maximize2, Minimize2, Copy, Check, MessageCircle, Share2 } from 'lucide-react';
+import { ArrowLeft, Code2, Workflow, Maximize2, Minimize2, Copy, Check, MessageCircle, Share2, StickyNote } from 'lucide-react';
 import ReactFlow, {
   Background,
   Controls,
@@ -20,14 +20,12 @@ import { graphToReactFlow } from '@/lib/parse-process-graph';
 import { layoutProcessGraph } from '@/lib/layout';
 import { BpmnNode, BpmnEdge, formatProcessGraphPoolLabel } from '@/lib/types';
 import { getProcess, ProcessDetail } from '@/services/process.service';
-import {
-  getThreads,
-  createThread,
-  CommentThread,
-} from '@/services/comment.service';
+import { getThreads, createThread, CommentThread } from '@/services/comment.service';
+import { getNotes, createNote, StickyNote as StickyNoteType } from '@/services/sticky-note.service';
 import { useAuth } from '@/contexts/auth.context';
 import { CommentsPanel } from '@/components/shared/CommentsPanel';
 import { CommentPins } from './CommentPins';
+import { StickyNotes } from './StickyNotes';
 import { ActivityNode } from './nodes/ActivityNode';
 import { DecisionNode } from './nodes/DecisionNode';
 import { StartEndNode } from './nodes/StartEndNode';
@@ -49,17 +47,21 @@ const nodeTypes = {
   bpmnPool: BpmnPoolNode,
 };
 
-function FlowCanvasWithComments({
+type CanvasMode = 'default' | 'comment' | 'note';
+
+function FlowCanvasWithOverlays({
   initialNodes,
   initialEdges,
   title,
   slug,
   pool,
   threads,
-  commentMode,
-  activeThreadId,
-  onCanvasClick,
-  onPinClick,
+  notes,
+  canvasMode,
+  onCommentCanvasClick,
+  onNoteCanvasClick,
+  onThreadUpdated,
+  onNotesUpdated,
 }: {
   initialNodes: BpmnNode[];
   initialEdges: BpmnEdge[];
@@ -67,10 +69,12 @@ function FlowCanvasWithComments({
   slug: string;
   pool?: string;
   threads: CommentThread[];
-  commentMode: boolean;
-  activeThreadId: string | null;
-  onCanvasClick: (x: number, y: number) => void;
-  onPinClick: (thread: CommentThread) => void;
+  notes: StickyNoteType[];
+  canvasMode: CanvasMode;
+  onCommentCanvasClick: (x: number, y: number) => void;
+  onNoteCanvasClick: (x: number, y: number) => void;
+  onThreadUpdated: () => void;
+  onNotesUpdated: () => void;
 }) {
   const edgesWithStyle = useMemo(() => withBpmnEdgeStyle(initialEdges), [initialEdges]);
   const [nodes, , onNodesChange] = useNodesState(initialNodes);
@@ -94,20 +98,12 @@ function FlowCanvasWithComments({
       >
         <Background variant={BackgroundVariant.Dots} gap={22} size={0.55} color={diagramInline.dot} />
         <Controls showInteractive={false} />
-        <MiniMap
-          pannable
-          zoomable
-          nodeColor={diagramInline.minimapNode}
-          maskColor="rgb(244 244 245 / 0.65)"
-          className="!bg-white/90"
-        />
+        <MiniMap pannable zoomable nodeColor={diagramInline.minimapNode} maskColor="rgb(244 244 245 / 0.65)" className="!bg-white/90" />
 
         <Panel position="top-left">
           <div className="flex flex-col gap-2 items-start max-w-md">
             <div className="bg-white/95 backdrop-blur-sm border border-zinc-200 rounded-bpmn px-4 py-2.5 shadow-md w-full">
-              <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-[0.12em] block">
-                {slug}
-              </span>
+              <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-[0.12em] block">{slug}</span>
               {pool && (
                 <p className="text-[10px] text-zinc-800 mt-1 leading-snug border-l-[3px] border-zinc-600 pl-2.5 mb-1">
                   Pool: {pool}
@@ -120,27 +116,34 @@ function FlowCanvasWithComments({
         </Panel>
 
         <Panel position="top-right">
-          <ExportButton
-            flowRef={flowRef}
-            filename={`${slug}-${title}`.replace(/\s+/g, '-').toLowerCase()}
-          />
+          <ExportButton flowRef={flowRef} filename={`${slug}-${title}`.replace(/\s+/g, '-').toLowerCase()} />
         </Panel>
       </ReactFlow>
 
-      {/* Comment pins overlay */}
-      <CommentPins
-        threads={threads}
-        commentMode={commentMode}
-        onCanvasClick={onCanvasClick}
-        onPinClick={onPinClick}
-        activeThreadId={activeThreadId}
+      {/* Sticky notes layer (below comments) */}
+      <StickyNotes
+        notes={notes}
+        noteMode={canvasMode === 'note'}
+        onCanvasClick={onNoteCanvasClick}
+        onNotesUpdated={onNotesUpdated}
       />
 
-      {/* Comment mode indicator */}
-      {commentMode && (
+      {/* Comment pins layer (above sticky notes) */}
+      <CommentPins
+        threads={threads}
+        commentMode={canvasMode === 'comment'}
+        onCanvasClick={onCommentCanvasClick}
+        onThreadUpdated={onThreadUpdated}
+      />
+
+      {/* Mode indicator */}
+      {canvasMode !== 'default' && (
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 bg-zinc-900 text-white px-4 py-2 rounded-full shadow-lg text-xs font-medium flex items-center gap-2">
-          <MessageCircle size={14} />
-          Clique no diagrama para comentar
+          {canvasMode === 'comment' ? (
+            <><MessageCircle size={14} /> Clique para comentar</>
+          ) : (
+            <><StickyNote size={14} /> Clique para adicionar nota</>
+          )}
           <kbd className="px-1.5 py-0.5 bg-zinc-700 rounded text-[10px] font-mono ml-1">ESC</kbd>
         </div>
       )}
@@ -162,15 +165,18 @@ export default function ProcessView() {
   const [fullscreen, setFullscreen] = useState(false);
   const [showCode, setShowCode] = useState(false);
   const [showComments, setShowComments] = useState(false);
-  const [commentMode, setCommentMode] = useState(false);
+  const [canvasMode, setCanvasMode] = useState<CanvasMode>('default');
   const [codeCopied, setCodeCopied] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
 
-  // Comment threads
+  // Comments
   const [threads, setThreads] = useState<CommentThread[]>([]);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [newThreadPrompt, setNewThreadPrompt] = useState<{ x: number; y: number } | null>(null);
-  const [newComment, setNewComment] = useState('');
+  const [newThreadContent, setNewThreadContent] = useState('');
+
+  // Sticky notes
+  const [stickyNotes, setStickyNotes] = useState<StickyNoteType[]>([]);
 
   const handleShare = useCallback(() => {
     const shareUrl = `${window.location.origin}/share/${processId}`;
@@ -179,7 +185,7 @@ export default function ProcessView() {
     window.setTimeout(() => setShareCopied(false), 2000);
   }, [processId]);
 
-  // Auth redirect
+  // Auth
   useEffect(() => {
     if (!authLoading && !isAuthenticated) router.push('/login');
   }, [authLoading, isAuthenticated, router]);
@@ -199,24 +205,29 @@ export default function ProcessView() {
     if (!processId || !isAuthenticated) return;
     getThreads(processId).then(setThreads).catch(console.error);
   }, [processId, isAuthenticated]);
-
   useEffect(() => { loadThreads(); }, [loadThreads]);
 
-  // Keyboard: C to toggle comment mode, ESC to exit
+  // Load sticky notes
+  const loadNotes = useCallback(() => {
+    if (!processId || !isAuthenticated) return;
+    getNotes(processId).then(setStickyNotes).catch(console.error);
+  }, [processId, isAuthenticated]);
+  useEffect(() => { loadNotes(); }, [loadNotes]);
+
+  // Keyboard shortcuts
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.metaKey || e.ctrlKey) return;
       if (e.key === 'c' || e.key === 'C') {
-        if (!e.metaKey && !e.ctrlKey) {
-          setCommentMode((prev) => {
-            const next = !prev;
-            if (next) setShowComments(true);
-            return next;
-          });
-        }
+        setCanvasMode((prev) => prev === 'comment' ? 'default' : 'comment');
+        setNewThreadPrompt(null);
+      }
+      if (e.key === 'n' || e.key === 'N') {
+        setCanvasMode((prev) => prev === 'note' ? 'default' : 'note');
       }
       if (e.key === 'Escape') {
-        setCommentMode(false);
+        setCanvasMode('default');
         setNewThreadPrompt(null);
       }
     }
@@ -224,34 +235,33 @@ export default function ProcessView() {
     return () => window.removeEventListener('keydown', handleKey);
   }, []);
 
-  // Handle canvas click in comment mode
-  const handleCanvasClick = useCallback((x: number, y: number) => {
+  // Comment canvas click
+  const handleCommentCanvasClick = useCallback((x: number, y: number) => {
     setNewThreadPrompt({ x, y });
-    setNewComment('');
-    setShowComments(true);
+    setNewThreadContent('');
   }, []);
 
-  // Create new thread
+  // Create thread
   const handleCreateThread = useCallback(async () => {
-    if (!newThreadPrompt || !newComment.trim() || !processId) return;
+    if (!newThreadPrompt || !newThreadContent.trim() || !processId) return;
     try {
-      const thread = await createThread(processId, newThreadPrompt.x, newThreadPrompt.y, newComment.trim());
-      setThreads((prev) => [...prev, thread]);
-      setActiveThreadId(thread.id);
+      await createThread(processId, newThreadPrompt.x, newThreadPrompt.y, newThreadContent.trim());
+      loadThreads();
       setNewThreadPrompt(null);
-      setNewComment('');
-      setCommentMode(false);
-    } catch {
-      // silently fail
-    }
-  }, [newThreadPrompt, newComment, processId]);
+      setNewThreadContent('');
+      setCanvasMode('default');
+    } catch { /* silently fail */ }
+  }, [newThreadPrompt, newThreadContent, processId, loadThreads]);
 
-  // Pin click
-  const handlePinClick = useCallback((thread: CommentThread) => {
-    setActiveThreadId(thread.id);
-    setShowComments(true);
-    setNewThreadPrompt(null);
-  }, []);
+  // Note canvas click
+  const handleNoteCanvasClick = useCallback(async (x: number, y: number) => {
+    if (!processId) return;
+    try {
+      await createNote(processId, { content: 'Nova nota', x, y });
+      loadNotes();
+      setCanvasMode('default');
+    } catch { /* silently fail */ }
+  }, [processId, loadNotes]);
 
   const handleCopyGraphJson = useCallback(() => {
     if (!proc) return;
@@ -283,12 +293,8 @@ export default function ProcessView() {
           <Workflow size={48} className="mx-auto mb-4 text-zinc-300" />
           <h1 className="text-xl font-bold text-zinc-800 mb-2">Processo nao encontrado</h1>
           <p className="text-sm text-zinc-500 mb-6">O processo solicitado nao existe ou voce nao tem acesso.</p>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white text-sm font-semibold rounded-bpmn hover:bg-zinc-800 transition-colors shadow-sm"
-          >
-            <ArrowLeft size={14} />
-            Voltar ao inicio
+          <Link href="/" className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white text-sm font-semibold rounded-bpmn hover:bg-zinc-800 transition-colors shadow-sm">
+            <ArrowLeft size={14} /> Voltar ao inicio
           </Link>
         </div>
       </div>
@@ -299,26 +305,17 @@ export default function ProcessView() {
     return (
       <div style={{ width: '100vw', height: '100vh' }}>
         <div className="absolute top-4 left-4 z-20">
-          <button
-            onClick={() => setFullscreen(false)}
-            className="flex items-center gap-1.5 px-3 py-2 bg-white border border-zinc-200 rounded-bpmn text-xs font-medium text-zinc-800 hover:bg-zinc-100 transition-all shadow-sm"
-          >
-            <Minimize2 size={12} />
-            Sair
+          <button onClick={() => setFullscreen(false)} className="flex items-center gap-1.5 px-3 py-2 bg-white border border-zinc-200 rounded-bpmn text-xs font-medium text-zinc-800 hover:bg-zinc-100 transition-all shadow-sm">
+            <Minimize2 size={12} /> Sair
           </button>
         </div>
         <ReactFlowProvider>
-          <FlowCanvasWithComments
-            initialNodes={nodes}
-            initialEdges={edges}
-            title={proc.title}
-            slug={proc.slug}
+          <FlowCanvasWithOverlays
+            initialNodes={nodes} initialEdges={edges} title={proc.title} slug={proc.slug}
             pool={formatProcessGraphPoolLabel(proc.graph) ?? proc.graph.pool}
-            threads={threads}
-            commentMode={commentMode}
-            activeThreadId={activeThreadId}
-            onCanvasClick={handleCanvasClick}
-            onPinClick={handlePinClick}
+            threads={threads} notes={stickyNotes} canvasMode={canvasMode}
+            onCommentCanvasClick={handleCommentCanvasClick} onNoteCanvasClick={handleNoteCanvasClick}
+            onThreadUpdated={loadThreads} onNotesUpdated={loadNotes}
           />
         </ReactFlowProvider>
       </div>
@@ -334,71 +331,50 @@ export default function ProcessView() {
             <ArrowLeft size={18} />
           </Link>
           <div>
-            <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-[0.08em]">
-              {proc.slug}
-            </span>
+            <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-[0.08em]">{proc.slug}</span>
             <h1 className="text-sm font-semibold text-zinc-900 tracking-tight">{proc.title}</h1>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
+          <button onClick={handleShare} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-bpmn text-xs font-semibold border transition-all ${shareCopied ? 'bg-green-50 text-green-700 border-green-200' : 'text-zinc-500 border-zinc-200 hover:bg-zinc-100'}`}>
+            {shareCopied ? <><Check size={12} /> Link copiado!</> : <><Share2 size={12} /> Compartilhar</>}
+          </button>
           <button
-            onClick={handleShare}
+            onClick={() => setCanvasMode((prev) => prev === 'comment' ? 'default' : 'comment')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-bpmn text-xs font-semibold border transition-all ${
-              shareCopied
-                ? 'bg-green-50 text-green-700 border-green-200'
-                : 'text-zinc-500 border-zinc-200 hover:bg-zinc-100'
+              canvasMode === 'comment' ? 'bg-zinc-900 text-white border-zinc-900' : 'text-zinc-500 border-zinc-200 hover:bg-zinc-100'
             }`}
+            title="Atalho: C"
           >
-            {shareCopied ? (
-              <><Check size={12} /> Link copiado!</>
-            ) : (
-              <><Share2 size={12} /> Compartilhar</>
+            <MessageCircle size={12} />
+            {unresolvedCount > 0 && (
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${canvasMode === 'comment' ? 'bg-white text-zinc-900' : 'bg-zinc-900 text-white'}`}>{unresolvedCount}</span>
             )}
           </button>
           <button
-            onClick={() => {
-              setCommentMode((prev) => {
-                const next = !prev;
-                if (next) setShowComments(true);
-                return next;
-              });
-            }}
+            onClick={() => setCanvasMode((prev) => prev === 'note' ? 'default' : 'note')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-bpmn text-xs font-semibold border transition-all ${
-              commentMode
-                ? 'bg-zinc-900 text-white border-zinc-900'
-                : showComments
-                  ? 'bg-zinc-100 text-zinc-900 border-zinc-300 shadow-sm'
-                  : 'text-zinc-500 border-zinc-200 hover:bg-zinc-100'
+              canvasMode === 'note' ? 'bg-yellow-400 text-yellow-900 border-yellow-500' : 'text-zinc-500 border-zinc-200 hover:bg-zinc-100'
             }`}
+            title="Atalho: N"
           >
-            <MessageCircle size={12} />
-            Comentarios
-            {unresolvedCount > 0 && (
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
-                commentMode ? 'bg-white text-zinc-900' : 'bg-zinc-900 text-white'
-              }`}>
-                {unresolvedCount}
-              </span>
-            )}
+            <StickyNote size={12} />
+          </button>
+          <button
+            onClick={() => setShowComments(!showComments)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-bpmn text-xs font-semibold border transition-all ${showComments ? 'bg-zinc-100 text-zinc-900 border-zinc-300 shadow-sm' : 'text-zinc-500 border-zinc-200 hover:bg-zinc-100'}`}
+          >
+            Drawer
           </button>
           <button
             onClick={() => setShowCode(!showCode)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-bpmn text-xs font-semibold border transition-all ${
-              showCode
-                ? 'bg-zinc-100 text-zinc-900 border-zinc-300 shadow-sm'
-                : 'text-zinc-500 border-zinc-200 hover:bg-zinc-100'
-            }`}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-bpmn text-xs font-semibold border transition-all ${showCode ? 'bg-zinc-100 text-zinc-900 border-zinc-300 shadow-sm' : 'text-zinc-500 border-zinc-200 hover:bg-zinc-100'}`}
           >
-            <Code2 size={12} />
-            Codigo
+            <Code2 size={12} /> Codigo
           </button>
-          <button
-            onClick={() => setFullscreen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-zinc-500 border border-zinc-200 hover:bg-zinc-100 rounded-bpmn text-xs font-semibold transition-all"
-          >
-            <Maximize2 size={12} />
-            Fullscreen
+          <button onClick={() => setFullscreen(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-zinc-500 border border-zinc-200 hover:bg-zinc-100 rounded-bpmn text-xs font-semibold transition-all">
+            <Maximize2 size={12} /> Fullscreen
           </button>
         </div>
       </header>
@@ -409,72 +385,34 @@ export default function ProcessView() {
           <div style={{ width: 380, flexShrink: 0 }} className="border-r border-zinc-200 flex flex-col overflow-hidden bg-zinc-950">
             <div className="px-3 py-1.5 bg-zinc-900 text-zinc-500 text-[10px] font-mono font-medium tracking-wide border-b border-zinc-800 flex items-center justify-between gap-2">
               <span>graph.json</span>
-              <button
-                type="button"
-                onClick={handleCopyGraphJson}
-                aria-label={codeCopied ? 'JSON copiado' : 'Copiar JSON'}
-                className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-sans font-semibold text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors"
-              >
-                {codeCopied ? (
-                  <><Check size={11} className="text-green-500" aria-hidden /> Copiado</>
-                ) : (
-                  <><Copy size={11} aria-hidden /> Copiar</>
-                )}
+              <button type="button" onClick={handleCopyGraphJson} className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-sans font-semibold text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors">
+                {codeCopied ? <><Check size={11} className="text-green-500" /> Copiado</> : <><Copy size={11} /> Copiar</>}
               </button>
             </div>
-            <pre className="flex-1 p-4 bg-zinc-950 text-zinc-300 font-mono text-[11px] overflow-auto leading-relaxed selection:bg-zinc-700/80 selection:text-zinc-100">
-              {JSON.stringify(proc.graph, null, 2)}
-            </pre>
+            <pre className="flex-1 p-4 bg-zinc-950 text-zinc-300 font-mono text-[11px] overflow-auto leading-relaxed">{JSON.stringify(proc.graph, null, 2)}</pre>
           </div>
         )}
 
         <div style={{ flex: 1, position: 'relative' }}>
           <ReactFlowProvider>
-            <FlowCanvasWithComments
-              initialNodes={nodes}
-              initialEdges={edges}
-              title={proc.title}
-              slug={proc.slug}
+            <FlowCanvasWithOverlays
+              initialNodes={nodes} initialEdges={edges} title={proc.title} slug={proc.slug}
               pool={formatProcessGraphPoolLabel(proc.graph) ?? proc.graph.pool}
-              threads={threads}
-              commentMode={commentMode}
-              activeThreadId={activeThreadId}
-              onCanvasClick={handleCanvasClick}
-              onPinClick={handlePinClick}
+              threads={threads} notes={stickyNotes} canvasMode={canvasMode}
+              onCommentCanvasClick={handleCommentCanvasClick} onNoteCanvasClick={handleNoteCanvasClick}
+              onThreadUpdated={loadThreads} onNotesUpdated={loadNotes}
             />
           </ReactFlowProvider>
 
-          {/* New thread input popup */}
+          {/* New comment thread input */}
           {newThreadPrompt && (
             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 bg-white border border-zinc-200 rounded-bpmn shadow-xl p-3 w-80">
               <p className="text-[11px] font-semibold text-zinc-700 mb-2">Novo comentario</p>
-              <form
-                onSubmit={(e) => { e.preventDefault(); handleCreateThread(); }}
-                className="flex gap-2"
-              >
-                <input
-                  type="text"
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  placeholder="Escreva seu comentario..."
-                  autoFocus
-                  className="flex-1 px-3 py-2 text-xs border border-zinc-200 rounded-bpmn bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-                />
-                <button
-                  type="submit"
-                  disabled={!newComment.trim()}
-                  className="px-3 py-2 bg-zinc-900 text-white rounded-bpmn hover:bg-zinc-800 transition-colors disabled:opacity-50"
-                >
-                  Enviar
-                </button>
+              <form onSubmit={(e) => { e.preventDefault(); handleCreateThread(); }} className="flex gap-2">
+                <input type="text" value={newThreadContent} onChange={(e) => setNewThreadContent(e.target.value)} placeholder="Escreva seu comentario..." autoFocus className="flex-1 px-3 py-2 text-xs border border-zinc-200 rounded-bpmn bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10" />
+                <button type="submit" disabled={!newThreadContent.trim()} className="px-3 py-2 bg-zinc-900 text-white rounded-bpmn hover:bg-zinc-800 disabled:opacity-50">Enviar</button>
               </form>
-              <button
-                type="button"
-                onClick={() => setNewThreadPrompt(null)}
-                className="text-[10px] text-zinc-400 hover:text-zinc-700 mt-1"
-              >
-                Cancelar
-              </button>
+              <button type="button" onClick={() => setNewThreadPrompt(null)} className="text-[10px] text-zinc-400 hover:text-zinc-700 mt-1">Cancelar</button>
             </div>
           )}
         </div>
