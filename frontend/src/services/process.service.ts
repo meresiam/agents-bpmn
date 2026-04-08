@@ -28,6 +28,7 @@ export interface ProcessSummary {
 
 export interface ProcessDetail extends ProcessSummary {
   graph: ProcessGraphJson;
+  layoutOverrides: Record<string, { x: number; y: number }> | null;
 }
 
 export interface TenantSummary {
@@ -73,4 +74,18 @@ export async function updateProcess(
     method: 'PATCH',
     body: JSON.stringify(data),
   });
+}
+
+export async function saveLayoutOverrides(
+  id: string,
+  overrides: Record<string, { x: number; y: number }>,
+): Promise<ProcessDetail> {
+  return apiFetch<ProcessDetail>(`/processes/${id}/layout`, {
+    method: 'PATCH',
+    body: JSON.stringify({ overrides }),
+  });
+}
+
+export async function resetLayoutOverrides(id: string): Promise<void> {
+  await apiFetch(`/processes/${id}/layout`, { method: 'DELETE' });
 }

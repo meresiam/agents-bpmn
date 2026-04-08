@@ -21,7 +21,7 @@ import 'reactflow/dist/style.css';
 import { graphToReactFlow } from '@/lib/parse-process-graph';
 import { layoutProcessGraph } from '@/lib/layout';
 import { BpmnNode, BpmnEdge, formatProcessGraphPoolLabel } from '@/lib/types';
-import { getProcess, ProcessDetail } from '@/services/process.service';
+import { getProcess, saveLayoutOverrides, ProcessDetail } from '@/services/process.service';
 import { getThreads, createThread, deleteThread, CommentThread } from '@/services/comment.service';
 import { getNotes, createNote, updateNote, deleteNote, StickyNote as StickyNoteType } from '@/services/sticky-note.service';
 import { useAuth } from '@/contexts/auth.context';
@@ -63,7 +63,7 @@ function FlowCanvasWithOverlays({
   canvasMode,
   onCommentCanvasClick,
   onNoteCanvasClick,
-  onNoteDragStop,
+  onNodeDragStop,
   onThreadUpdated,
   onDeleteThread,
 }: {
@@ -77,7 +77,7 @@ function FlowCanvasWithOverlays({
   canvasMode: CanvasMode;
   onCommentCanvasClick: (flowX: number, flowY: number, screenX: number, screenY: number) => void;
   onNoteCanvasClick: (x: number, y: number) => void;
-  onNoteDragStop: NodeDragHandler;
+  onNodeDragStop: NodeDragHandler;
   onThreadUpdated: () => void;
   onDeleteThread: (threadId: string) => void;
 }) {
@@ -101,7 +101,7 @@ function FlowCanvasWithOverlays({
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
-        onNodeDragStop={onNoteDragStop}
+        onNodeDragStop={onNodeDragStop}
         nodeTypes={nodeTypes}
         fitView
         fitViewOptions={{ padding: 0.3, maxZoom: 1.5 }}
@@ -164,8 +164,9 @@ function FlowCanvasWithOverlays({
 export default function ProcessView() {
   const params = useParams();
   const router = useRouter();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const processId = params.id as string;
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
 
   const [proc, setProc] = useState<ProcessDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -303,12 +304,20 @@ export default function ProcessView() {
     loadNotes();
   }, [loadNotes]);
 
-  // Handle sticky note drag stop — save new position
-  const handleNoteDragStop: NodeDragHandler = useCallback((_event, node) => {
-    if (node.type !== 'stickyNote') return;
-    const noteId = (node.data as StickyNoteNodeData).noteId;
-    updateNote(noteId, { x: node.position.x, y: node.position.y }).then(loadNotes);
-  }, [loadNotes]);
+  // Handle node drag stop — save position (sticky notes or BPMN nodes)
+  const handleNodeDragStop: NodeDragHandler = useCallback((_event, node) => {
+    if (node.type === 'stickyNote') {
+      const noteId = (node.data as StickyNoteNodeData).noteId;
+      updateNote(noteId, { x: node.position.x, y: node.position.y }).then(loadNotes);
+      return;
+    }
+    // BPMN node — save layout override (SUPER_ADMIN only)
+    if (processId && isSuperAdmin && node.type !== 'bpmnPool') {
+      saveLayoutOverrides(processId, {
+        [node.id]: { x: node.position.x, y: node.position.y },
+      }).catch(console.error);
+    }
+  }, [loadNotes, processId, isSuperAdmin]);
 
   // Convert sticky notes to ReactFlow nodes
   const noteNodes: Node<StickyNoteNodeData>[] = useMemo(() => {
@@ -340,8 +349,28 @@ export default function ProcessView() {
   const { nodes, edges } = useMemo(() => {
     if (!proc) return { nodes: [], edges: [] };
     const { nodes: raw, edges: rawEdges } = graphToReactFlow(proc.graph);
-    return layoutProcessGraph(proc.graph, raw, rawEdges);
-  }, [proc]);
+    const laid = layoutProcessGraph(proc.graph, raw, rawEdges);
+
+    // Apply layout overrides (saved node positions)
+    if (proc.layoutOverrides) {
+      const overrides = proc.layoutOverrides as Record<string, { x: number; y: number }>;
+      laid.nodes = laid.nodes.map((n) => {
+        const ov = overrides[n.id];
+        if (!ov) return n;
+        return { ...n, position: { x: ov.x, y: ov.y } };
+      });
+    }
+
+    // Make BPMN nodes draggable for SUPER_ADMIN
+    if (isSuperAdmin) {
+      laid.nodes = laid.nodes.map((n) => {
+        if (n.type === 'bpmnPool' || n.type === 'stickyNote') return n;
+        return { ...n, draggable: true };
+      });
+    }
+
+    return laid;
+  }, [proc, isSuperAdmin]);
 
   const unresolvedCount = threads.filter((t) => !t.resolved).length;
 
@@ -382,7 +411,7 @@ export default function ProcessView() {
             pool={formatProcessGraphPoolLabel(proc.graph) ?? proc.graph.pool}
             threads={threads} noteNodes={noteNodes} canvasMode={canvasMode}
             onCommentCanvasClick={handleCommentCanvasClick} onNoteCanvasClick={handleNoteCanvasClick}
-            onNoteDragStop={handleNoteDragStop} onThreadUpdated={loadThreads}
+            onNodeDragStop={handleNodeDragStop} onThreadUpdated={loadThreads}
             onDeleteThread={handleDeleteThread}
           />
         </ReactFlowProvider>
@@ -468,7 +497,7 @@ export default function ProcessView() {
               pool={formatProcessGraphPoolLabel(proc.graph) ?? proc.graph.pool}
               threads={threads} noteNodes={noteNodes} canvasMode={canvasMode}
               onCommentCanvasClick={handleCommentCanvasClick} onNoteCanvasClick={handleNoteCanvasClick}
-              onNoteDragStop={handleNoteDragStop} onThreadUpdated={loadThreads}
+              onNodeDragStop={handleNodeDragStop} onThreadUpdated={loadThreads}
               onDeleteThread={handleDeleteThread}
             />
           </ReactFlowProvider>
