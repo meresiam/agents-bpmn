@@ -1,5 +1,9 @@
 import { BpmnNode, BpmnEdge, BpmnNodeData, BpmnPoolNodeData } from './types';
-import { nodeDimensions } from './layout-metrics';
+import { NODE_HANDLE_ALIGN_HEIGHTS, NODE_HEIGHTS, nodeDimensions } from './layout-metrics';
+
+function handleAlignHeightForType(type: string): number {
+  return NODE_HANDLE_ALIGN_HEIGHTS[type] ?? NODE_HEIGHTS[type] ?? 72;
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────
 
@@ -9,6 +13,8 @@ export const SWIMLANE_CONTENT_OFFSET_X = POOL_NAME_COL + LANE_LABEL_COL;
 const CONTENT_PADDING_TOP = 16;
 const LANE_VERT_PAD = 12;
 const NODE_GAP_Y = 18;
+/** Espaço extra entre vários eventos de início/fim na mesma célula (evita rótulos colados). */
+const MULTI_START_GAP_Y = 34;
 const RANK_SEP = 80;
 const RIGHT_PADDING = 56;
 const BOTTOM_PADDING = 24;
@@ -168,11 +174,21 @@ function buildGrid(
 
 // ─── Phase 4: Geometry (predecessor-aware Y) ─────────────────────────────
 
+function isMultiStartEndCell(items: ContentNode[]): boolean {
+  return items.length > 1 && items.every((it) => it.type === 'startEnd');
+}
+
+/** Gap vertical após o item `i` (antes do próximo). */
+function gapAfterItem(items: ContentNode[], i: number): number {
+  if (i >= items.length - 1) return 0;
+  return isMultiStartEndCell(items) ? MULTI_START_GAP_Y : NODE_GAP_Y;
+}
+
 function stackHeight(items: ContentNode[]): number {
   let h = 0;
   for (let i = 0; i < items.length; i++) {
     h += items[i].h;
-    if (i > 0) h += NODE_GAP_Y;
+    h += gapAfterItem(items, i);
   }
   return h;
 }
@@ -183,7 +199,8 @@ function computeGeometry(
   lanes: string[],
   pred: Map<string, string[]>,
   adj: Map<string, string[]>,
-  nodeHeightMap?: Map<string, number>
+  nodeHeightMap?: Map<string, number>,
+  handleAlignHeightMap?: Map<string, number>
 ) {
   const laneCount = lanes.length;
 
@@ -251,9 +268,10 @@ function computeGeometry(
     startY = Math.max(minTop, Math.min(startY, maxTop));
 
     let nodeY = startY;
-    for (const item of cell.items) {
+    for (let i = 0; i < cell.items.length; i++) {
+      const item = cell.items[i];
       positions.set(item.id, { x: colCenter - item.w / 2, y: nodeY });
-      nodeY += item.h + NODE_GAP_Y;
+      nodeY += item.h + gapAfterItem(cell.items, i);
     }
   }
 
@@ -283,30 +301,72 @@ function computeGeometry(
     }
   }
 
-  // Final pass: align startEnd nodes to the center Y of their closest neighbor
-  for (const [, cell] of grid) {
-    for (const item of cell.items) {
-      if (item.type !== 'startEnd') continue;
-      const pos = positions.get(item.id);
-      if (!pos) continue;
+  // Final pass: alinhar startEnd ao vizinho. Vários na mesma célula: delta comum + clamp em
+  // grupo (clamp por nó empurrava todos pro mesmo minTop e sobrepunha os círculos).
+  const startEndHalfH = (NODE_HEIGHTS.startEnd ?? 36) / 2;
 
-      const neighbors = [
-        ...(adj.get(item.id) ?? []),
-        ...(pred.get(item.id) ?? []),
-      ];
-      let bestY: number | null = null;
-      for (const n of neighbors) {
-        const nPos = positions.get(n);
-        if (nPos) {
-          const nH = nodeHeightMap?.get(n) ?? 100;
-          // Align center of startEnd with center of neighbor
-          bestY = nPos.y + nH / 2;
-          break; // use first neighbor (most directly connected)
+  function snapDeltaForStartEnd(item: ContentNode): number | null {
+    const pos = positions.get(item.id);
+    if (!pos) return null;
+    const successors = adj.get(item.id) ?? [];
+    const predecessors = pred.get(item.id) ?? [];
+    const neighbors = successors.length > 0 ? successors : predecessors;
+    for (const n of neighbors) {
+      const nPos = positions.get(n);
+      if (!nPos) continue;
+      const alignH = handleAlignHeightMap?.get(n) ?? nodeHeightMap?.get(n) ?? 100;
+      const neighborHandleY = nPos.y + alignH / 2;
+      return neighborHandleY - (pos.y + startEndHalfH);
+    }
+    return null;
+  }
+
+  for (let r = 0; r <= maxRank; r++) {
+    for (let l = 0; l < laneCount; l++) {
+      const cell = grid.get(`${l},${r}`);
+      if (!cell) continue;
+
+      const startItems = cell.items.filter((it) => it.type === 'startEnd');
+      if (startItems.length === 0) continue;
+
+      const laneTop = laneYOffsets[l];
+      const laneH = laneHeights[l];
+      const minTop = laneTop + LANE_VERT_PAD;
+      const laneBottom = laneTop + laneH - LANE_VERT_PAD;
+
+      const groupOnly = startItems.length > 1 && startItems.length === cell.items.length;
+
+      if (groupOnly) {
+        const deltas = startItems.map((it) => snapDeltaForStartEnd(it)).filter((d): d is number => d !== null);
+        if (deltas.length !== startItems.length) continue;
+        const delta = deltas.reduce((s, v) => s + v, 0) / deltas.length;
+        const tent: { id: string; y: number; h: number }[] = startItems.map((it) => {
+          const p = positions.get(it.id)!;
+          return { id: it.id, y: p.y + delta, h: it.h };
+        });
+        let minT = Math.min(...tent.map((t) => t.y));
+        let maxB = Math.max(...tent.map((t) => t.y + t.h));
+        let shift = 0;
+        if (minT < minTop) shift += minTop - minT;
+        minT += shift;
+        maxB += shift;
+        if (maxB > laneBottom) shift += laneBottom - maxB;
+        for (const t of tent) {
+          const p = positions.get(t.id)!;
+          positions.set(t.id, { x: p.x, y: t.y + shift });
         }
+        continue;
       }
-      if (bestY !== null) {
-        // Set Y so that center of startEnd aligns with neighbor center
-        positions.set(item.id, { x: pos.x, y: bestY - item.h / 2 });
+
+      for (const item of startItems) {
+        const pos = positions.get(item.id);
+        if (!pos) continue;
+        const d = snapDeltaForStartEnd(item);
+        if (d === null) continue;
+        const maxTop = laneTop + laneH - item.h - LANE_VERT_PAD;
+        let y = pos.y + d;
+        y = Math.max(minTop, Math.min(y, maxTop));
+        positions.set(item.id, { x: pos.x, y });
       }
     }
   }
@@ -355,8 +415,19 @@ export function getSwimlaneLayoutedElements(
   const nodeHeightMap = new Map<string, number>();
   for (const cn of contentNodes) nodeHeightMap.set(cn.id, cn.h);
 
+  const handleAlignHeightMap = new Map<string, number>();
+  for (const cn of contentNodes) handleAlignHeightMap.set(cn.id, handleAlignHeightForType(cn.type));
+
   // Phase 4
-  const { positions, laneHeights } = computeGeometry(grid, maxRank, lanes, pred, adj, nodeHeightMap);
+  const { positions, laneHeights } = computeGeometry(
+    grid,
+    maxRank,
+    lanes,
+    pred,
+    adj,
+    nodeHeightMap,
+    handleAlignHeightMap
+  );
 
   // Build output nodes
   const outputNodes: BpmnNode[] = contentNodes.map((cn) => ({
