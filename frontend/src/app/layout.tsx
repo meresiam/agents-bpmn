@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter, JetBrains_Mono } from 'next/font/google';
+import { Providers } from '@/components/layout/Providers';
 import './globals.css';
 
 const sans = Inter({
@@ -27,7 +28,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR" className={`${sans.variable} ${mono.variable}`}>
-      <body className="bg-zinc-100 text-zinc-900 antialiased font-sans">{children}</body>
+      <body className="bg-zinc-100 text-zinc-900 antialiased font-sans">
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

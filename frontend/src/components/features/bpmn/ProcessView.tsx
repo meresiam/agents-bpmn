@@ -1,9 +1,9 @@
 'use client';
 
-import { useParams } from 'next/navigation';
-import { useMemo, useRef, useState, useCallback } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Code2, Workflow, Maximize2, Minimize2, Copy, Check } from 'lucide-react';
+import { ArrowLeft, Code2, Workflow, Maximize2, Minimize2, Copy, Check, MessageSquare, Share2 } from 'lucide-react';
 import ReactFlow, {
   Background,
   Controls,
@@ -16,10 +16,12 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
-import { getProcess } from '@/data/examples';
 import { graphToReactFlow } from '@/lib/parse-process-graph';
 import { layoutProcessGraph } from '@/lib/layout';
 import { BpmnNode, BpmnEdge, formatProcessGraphPoolLabel } from '@/lib/types';
+import { getProcess, ProcessDetail } from '@/services/process.service';
+import { useAuth } from '@/contexts/auth.context';
+import { CommentsPanel } from '@/components/shared/CommentsPanel';
 import { ActivityNode } from './nodes/ActivityNode';
 import { DecisionNode } from './nodes/DecisionNode';
 import { StartEndNode } from './nodes/StartEndNode';
@@ -45,13 +47,13 @@ function FlowCanvas({
   initialNodes,
   initialEdges,
   title,
-  client,
+  slug,
   pool,
 }: {
   initialNodes: BpmnNode[];
   initialEdges: BpmnEdge[];
   title: string;
-  client: string;
+  slug: string;
   pool?: string;
 }) {
   const edgesWithStyle = useMemo(() => withBpmnEdgeStyle(initialEdges), [initialEdges]);
@@ -89,7 +91,7 @@ function FlowCanvas({
           <div className="flex flex-col gap-2 items-start max-w-md">
             <div className="bg-white/95 backdrop-blur-sm border border-zinc-200 rounded-bpmn px-4 py-2.5 shadow-md w-full">
               <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-[0.12em] block">
-                {client}
+                {slug}
               </span>
               {pool && (
                 <p className="text-[10px] text-zinc-800 mt-1 leading-snug border-l-[3px] border-zinc-600 pl-2.5 mb-1">
@@ -105,7 +107,7 @@ function FlowCanvas({
         <Panel position="top-right">
           <ExportButton
             flowRef={flowRef}
-            filename={`${client}-${title}`.replace(/\s+/g, '-').toLowerCase()}
+            filename={`${slug}-${title}`.replace(/\s+/g, '-').toLowerCase()}
           />
         </Panel>
       </ReactFlow>
@@ -116,13 +118,40 @@ function FlowCanvas({
 
 export default function ProcessView() {
   const params = useParams();
-  const client = params.client as string;
-  const process = params.process as string;
+  const router = useRouter();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const processId = params.id as string;
+
+  const [proc, setProc] = useState<ProcessDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [showCode, setShowCode] = useState(false);
+  const [showComments, setShowComments] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
 
-  const proc = useMemo(() => getProcess(client, process), [client, process]);
+  const handleShare = useCallback(() => {
+    const shareUrl = `${window.location.origin}/share/${processId}`;
+    void navigator.clipboard.writeText(shareUrl);
+    setShareCopied(true);
+    window.setTimeout(() => setShareCopied(false), 2000);
+  }, [processId]);
+
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.push('/login');
+    }
+  }, [authLoading, isAuthenticated, router]);
+
+  useEffect(() => {
+    if (!processId || !isAuthenticated) return;
+    setLoading(true);
+    getProcess(processId)
+      .then(setProc)
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }, [processId, isAuthenticated]);
 
   const handleCopyGraphJson = useCallback(() => {
     if (!proc) return;
@@ -137,25 +166,27 @@ export default function ProcessView() {
     return layoutProcessGraph(proc.graph, raw, rawEdges);
   }, [proc]);
 
-  if (!proc) {
+  if (authLoading || loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zinc-100">
+        <p className="text-sm text-zinc-500">Carregando...</p>
+      </div>
+    );
+  }
+
+  if (error || !proc) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-100">
         <div className="text-center">
           <Workflow size={48} className="mx-auto mb-4 text-zinc-300" />
-          <h1 className="text-xl font-bold text-zinc-800 mb-2">Processo não encontrado</h1>
-          <p className="text-sm text-zinc-500 mb-6">
-            O processo{' '}
-            <code className="bg-white border border-zinc-200 px-2 py-0.5 rounded-md text-xs font-mono text-zinc-800">
-              {client}/{process}
-            </code>{' '}
-            não existe.
-          </p>
+          <h1 className="text-xl font-bold text-zinc-800 mb-2">Processo nao encontrado</h1>
+          <p className="text-sm text-zinc-500 mb-6">O processo solicitado nao existe ou voce nao tem acesso.</p>
           <Link
             href="/"
             className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white text-sm font-semibold rounded-bpmn hover:bg-zinc-800 transition-colors shadow-sm"
           >
             <ArrowLeft size={14} />
-            Voltar ao início
+            Voltar ao inicio
           </Link>
         </div>
       </div>
@@ -179,7 +210,7 @@ export default function ProcessView() {
             initialNodes={nodes}
             initialEdges={edges}
             title={proc.title}
-            client={proc.client.toUpperCase()}
+            slug={proc.slug}
             pool={formatProcessGraphPoolLabel(proc.graph) ?? proc.graph.pool}
           />
         </ReactFlowProvider>
@@ -192,17 +223,49 @@ export default function ProcessView() {
       {/* Header */}
       <header className="bg-white/90 backdrop-blur-md border-b border-zinc-200 px-6 py-3 flex items-center justify-between flex-shrink-0 shadow-sm">
         <div className="flex items-center gap-4">
+          <Link href="/" className="text-zinc-400 hover:text-zinc-700 transition-colors">
+            <ArrowLeft size={18} />
+          </Link>
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-[0.08em]">{proc.client}</span>
-              <span className="text-xs text-zinc-300">/</span>
-              <span className="text-[11px] font-medium text-zinc-500">{proc.process}</span>
-            </div>
+            <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-[0.08em]">
+              {proc.slug}
+            </span>
             <h1 className="text-sm font-semibold text-zinc-900 tracking-tight">{proc.title}</h1>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={handleShare}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-bpmn text-xs font-semibold border transition-all ${
+              shareCopied
+                ? 'bg-green-50 text-green-700 border-green-200'
+                : 'text-zinc-500 border-zinc-200 hover:bg-zinc-100'
+            }`}
+          >
+            {shareCopied ? (
+              <>
+                <Check size={12} />
+                Link copiado!
+              </>
+            ) : (
+              <>
+                <Share2 size={12} />
+                Compartilhar
+              </>
+            )}
+          </button>
+          <button
+            onClick={() => setShowComments(!showComments)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-bpmn text-xs font-semibold border transition-all ${
+              showComments
+                ? 'bg-zinc-100 text-zinc-900 border-zinc-300 shadow-sm'
+                : 'text-zinc-500 border-zinc-200 hover:bg-zinc-100'
+            }`}
+          >
+            <MessageSquare size={12} />
+            Comentarios
+          </button>
           <button
             onClick={() => setShowCode(!showCode)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-bpmn text-xs font-semibold border transition-all ${
@@ -212,7 +275,7 @@ export default function ProcessView() {
             }`}
           >
             <Code2 size={12} />
-            Código
+            Codigo
           </button>
           <button
             onClick={() => setFullscreen(true)}
@@ -233,7 +296,7 @@ export default function ProcessView() {
               <button
                 type="button"
                 onClick={handleCopyGraphJson}
-                aria-label={codeCopied ? 'JSON copiado' : 'Copiar JSON para a área de transferência'}
+                aria-label={codeCopied ? 'JSON copiado' : 'Copiar JSON'}
                 className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-sans font-semibold text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors"
               >
                 {codeCopied ? (
@@ -261,11 +324,15 @@ export default function ProcessView() {
               initialNodes={nodes}
               initialEdges={edges}
               title={proc.title}
-              client={proc.client.toUpperCase()}
+              slug={proc.slug}
               pool={formatProcessGraphPoolLabel(proc.graph) ?? proc.graph.pool}
             />
           </ReactFlowProvider>
         </div>
+
+        {showComments && (
+          <CommentsPanel processId={proc.id} />
+        )}
       </div>
     </div>
   );

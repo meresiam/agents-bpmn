@@ -1,0 +1,181 @@
+'use client';
+
+import { useParams } from 'next/navigation';
+import { useMemo, useRef, useState, useEffect } from 'react';
+import { Workflow } from 'lucide-react';
+import ReactFlow, {
+  Background,
+  Controls,
+  MiniMap,
+  ReactFlowProvider,
+  useNodesState,
+  useEdgesState,
+  BackgroundVariant,
+  Panel,
+} from 'reactflow';
+import 'reactflow/dist/style.css';
+
+import { graphToReactFlow } from '@/lib/parse-process-graph';
+import { layoutProcessGraph } from '@/lib/layout';
+import { BpmnNode, BpmnEdge, formatProcessGraphPoolLabel } from '@/lib/types';
+import { getSharedProcess, ProcessDetail } from '@/services/process.service';
+import { ActivityNode } from './nodes/ActivityNode';
+import { DecisionNode } from './nodes/DecisionNode';
+import { StartEndNode } from './nodes/StartEndNode';
+import { AutomationNode } from './nodes/AutomationNode';
+import { GroupNode } from './nodes/GroupNode';
+import { BpmnPoolNode } from './nodes/BpmnPoolNode';
+import { ExportButton } from './ExportButton';
+import { BpmnLegend } from './BpmnLegend';
+import { LaserPointerLayer } from './LaserPointerLayer';
+import { withBpmnEdgeStyle } from '@/lib/react-flow-theme';
+import { diagramInline } from '@/lib/diagram-tokens';
+
+const nodeTypes = {
+  activity: ActivityNode,
+  decision: DecisionNode,
+  startEnd: StartEndNode,
+  automation: AutomationNode,
+  group: GroupNode,
+  bpmnPool: BpmnPoolNode,
+};
+
+function FlowCanvas({
+  initialNodes,
+  initialEdges,
+  title,
+  pool,
+}: {
+  initialNodes: BpmnNode[];
+  initialEdges: BpmnEdge[];
+  title: string;
+  pool?: string;
+}) {
+  const edgesWithStyle = useMemo(() => withBpmnEdgeStyle(initialEdges), [initialEdges]);
+  const [nodes, , onNodesChange] = useNodesState(initialNodes);
+  const [edges, , onEdgesChange] = useEdgesState(edgesWithStyle);
+  const flowRef = useRef<HTMLDivElement>(null);
+
+  return (
+    <div ref={flowRef} className="relative" style={{ width: '100%', height: '100%' }}>
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        nodeTypes={nodeTypes}
+        fitView
+        fitViewOptions={{ padding: 0.3, maxZoom: 1.5 }}
+        minZoom={0.1}
+        maxZoom={3}
+        proOptions={{ hideAttribution: true }}
+        className="bg-zinc-100"
+      >
+        <Background variant={BackgroundVariant.Dots} gap={22} size={0.55} color={diagramInline.dot} />
+        <Controls showInteractive={false} />
+        <MiniMap
+          pannable
+          zoomable
+          nodeColor={diagramInline.minimapNode}
+          maskColor="rgb(244 244 245 / 0.65)"
+          className="!bg-white/90"
+        />
+
+        <Panel position="top-left">
+          <div className="flex flex-col gap-2 items-start max-w-md">
+            <div className="bg-white/95 backdrop-blur-sm border border-zinc-200 rounded-bpmn px-4 py-2.5 shadow-md w-full">
+              {pool && (
+                <p className="text-[10px] text-zinc-800 leading-snug border-l-[3px] border-zinc-600 pl-2.5 mb-1">
+                  Pool: {pool}
+                </p>
+              )}
+              <h2 className="text-sm font-semibold text-zinc-900 tracking-tight">{title}</h2>
+            </div>
+            <BpmnLegend align="left" />
+          </div>
+        </Panel>
+
+        <Panel position="top-right">
+          <ExportButton
+            flowRef={flowRef}
+            filename={title.replace(/\s+/g, '-').toLowerCase()}
+          />
+        </Panel>
+      </ReactFlow>
+      <LaserPointerLayer containerRef={flowRef} />
+    </div>
+  );
+}
+
+export default function PublicProcessView() {
+  const params = useParams();
+  const processId = params.id as string;
+
+  const [proc, setProc] = useState<ProcessDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (!processId) return;
+    getSharedProcess(processId)
+      .then(setProc)
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }, [processId]);
+
+  const { nodes, edges } = useMemo(() => {
+    if (!proc) return { nodes: [], edges: [] };
+    const { nodes: raw, edges: rawEdges } = graphToReactFlow(proc.graph);
+    return layoutProcessGraph(proc.graph, raw, rawEdges);
+  }, [proc]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zinc-100">
+        <p className="text-sm text-zinc-500">Carregando...</p>
+      </div>
+    );
+  }
+
+  if (error || !proc) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zinc-100">
+        <div className="text-center">
+          <Workflow size={48} className="mx-auto mb-4 text-zinc-300" />
+          <h1 className="text-xl font-bold text-zinc-800 mb-2">Fluxo nao encontrado</h1>
+          <p className="text-sm text-zinc-500">Este link pode estar expirado ou incorreto.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <header className="bg-white/90 backdrop-blur-md border-b border-zinc-200 px-6 py-3 flex items-center justify-between flex-shrink-0 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-zinc-900 rounded-bpmn flex items-center justify-center shadow-sm">
+            <Workflow size={16} className="text-white" />
+          </div>
+          <div>
+            <h1 className="text-sm font-semibold text-zinc-900 tracking-tight">{proc.title}</h1>
+            {proc.description && (
+              <p className="text-[11px] text-zinc-500 max-w-md truncate">{proc.description}</p>
+            )}
+          </div>
+        </div>
+        <span className="text-[10px] text-zinc-400 font-medium">Bravy BPMN</span>
+      </header>
+
+      <div style={{ flex: 1 }}>
+        <ReactFlowProvider>
+          <FlowCanvas
+            initialNodes={nodes}
+            initialEdges={edges}
+            title={proc.title}
+            pool={formatProcessGraphPoolLabel(proc.graph) ?? proc.graph.pool}
+          />
+        </ReactFlowProvider>
+      </div>
+    </div>
+  );
+}
