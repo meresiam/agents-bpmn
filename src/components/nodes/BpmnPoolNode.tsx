@@ -1,13 +1,12 @@
-'use client';
+"use client";
 
-import { memo, useMemo } from 'react';
-import { NodeProps } from 'reactflow';
-import { BpmnPoolNodeData } from '@/lib/types';
+import { BpmnPoolNodeData } from "@/lib/types";
+import { memo, useMemo } from "react";
+import { NodeProps } from "reactflow";
 
-/**
- * Piscina BPMN 2.0: borda externa, nome do pool (vertical), raias com rótulos e linhas horizontais.
- * Renderizado atrás dos demais nós (zIndex -1).
- */
+const BORDER = "border-zinc-300";
+const BORDER_W = "border-[1px]";
+
 function BpmnPoolNodeComponent({ data }: NodeProps<BpmnPoolNodeData>) {
   const {
     poolName,
@@ -20,9 +19,6 @@ function BpmnPoolNodeComponent({ data }: NodeProps<BpmnPoolNodeData>) {
     poolHeight,
   } = data;
 
-  const labelStripWidth = poolNameCol + laneLabelCol;
-
-  /** Cumulative Y offsets for each lane */
   const laneYOffsets = useMemo(() => {
     const offsets: number[] = [];
     let y = contentPaddingTop;
@@ -35,34 +31,45 @@ function BpmnPoolNodeComponent({ data }: NodeProps<BpmnPoolNodeData>) {
 
   return (
     <div
-      className="pointer-events-none select-none relative bg-white border-[1.5px] border-zinc-700 rounded-sm shadow-sm"
-      style={{
-        width: poolWidth,
-        height: poolHeight,
-        boxSizing: 'border-box',
-      }}
+      className={`pointer-events-none select-none relative bg-white border-2 ${BORDER} rounded-xl shadow-md overflow-hidden`}
+      style={{ width: poolWidth, height: poolHeight, boxSizing: "border-box" }}
     >
+      {/* Lane backgrounds — full width including label area */}
+      {lanes.map((_, i) => (
+        <div
+          key={`lane-bg-${i}`}
+          className={`absolute pointer-events-none ${i % 2 === 0 ? "bg-white" : "bg-zinc-50/80"}`}
+          style={{
+            left: 0,
+            top: laneYOffsets[i],
+            width: poolWidth,
+            height: i === lanes.length - 1 ? poolHeight - laneYOffsets[i] : laneHeights[i],
+          }}
+        />
+      ))}
+
+      {/* Horizontal lane dividers */}
       {lanes.map((_, i) => {
         if (i === 0) return null;
-        const y = laneYOffsets[i];
         return (
           <div
             key={`hline-${i}`}
-            className="absolute left-0 w-full pointer-events-none border-t-[1.25px] border-zinc-700"
-            style={{ top: y }}
+            className={`absolute left-0 w-full pointer-events-none border-t-${BORDER_W.slice(8, -1)} ${BORDER}`}
+            style={{ top: laneYOffsets[i], borderTopWidth: 1 }}
           />
         );
       })}
 
+      {/* Pool name column */}
       <div
-        className="absolute top-0 bottom-0 border-r border-zinc-600 flex items-center justify-center bg-gradient-to-b from-zinc-100 to-zinc-50"
+        className={`absolute top-0 bottom-0 border-r ${BORDER} flex items-center justify-center bg-zinc-100/90`}
         style={{ left: 0, width: poolNameCol }}
       >
         <span
-          className="text-[11px] font-semibold text-zinc-800 tracking-[0.04em] px-1 text-center"
+          className="text-[11px] font-semibold text-zinc-700 tracking-[0.04em] px-1 text-center"
           style={{
-            writingMode: 'vertical-rl',
-            transform: 'rotate(180deg)',
+            writingMode: "vertical-rl",
+            transform: "rotate(180deg)",
             maxHeight: poolHeight - 24,
           }}
         >
@@ -70,31 +77,29 @@ function BpmnPoolNodeComponent({ data }: NodeProps<BpmnPoolNodeData>) {
         </span>
       </div>
 
+      {/* Lane label column */}
       <div
-        className="absolute top-0 bottom-0 border-r-[1.5px] border-zinc-700 bg-zinc-100/90"
+        className={`absolute top-0 bottom-0 border-r ${BORDER} bg-zinc-100/90`}
         style={{ left: poolNameCol, width: laneLabelCol }}
       >
         {lanes.map((laneName, i) => (
           <div
             key={laneName}
             className={`absolute left-0 flex items-center pl-2.5 pr-1.5 ${
-              i < lanes.length - 1 ? 'border-b border-zinc-600' : ''
+              i < lanes.length - 1 ? `border-b ${BORDER}` : ""
             }`}
             style={{
               top: laneYOffsets[i],
-              height: laneHeights[i],
+              height: i === lanes.length - 1 ? poolHeight - laneYOffsets[i] : laneHeights[i],
               width: laneLabelCol,
             }}
           >
-            <span className="text-[10px] font-semibold text-zinc-800 leading-snug tracking-tight">{laneName}</span>
+            <span className="text-[10px] font-semibold text-zinc-700 leading-snug tracking-tight">
+              {laneName}
+            </span>
           </div>
         ))}
       </div>
-
-      <div
-        className="absolute top-0 bottom-0 bg-zinc-100/80"
-        style={{ left: labelStripWidth, width: poolWidth - labelStripWidth }}
-      />
     </div>
   );
 }
