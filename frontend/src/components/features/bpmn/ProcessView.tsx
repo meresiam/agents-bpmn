@@ -13,6 +13,8 @@ import ReactFlow, {
   useEdgesState,
   BackgroundVariant,
   Panel,
+  Node,
+  NodeDragHandler,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -21,11 +23,11 @@ import { layoutProcessGraph } from '@/lib/layout';
 import { BpmnNode, BpmnEdge, formatProcessGraphPoolLabel } from '@/lib/types';
 import { getProcess, ProcessDetail } from '@/services/process.service';
 import { getThreads, createThread, CommentThread } from '@/services/comment.service';
-import { getNotes, createNote, StickyNote as StickyNoteType } from '@/services/sticky-note.service';
+import { getNotes, createNote, updateNote, deleteNote, StickyNote as StickyNoteType } from '@/services/sticky-note.service';
 import { useAuth } from '@/contexts/auth.context';
 import { CommentsPanel } from '@/components/shared/CommentsPanel';
 import { CommentPins } from './CommentPins';
-import { StickyNotes } from './StickyNotes';
+import { StickyNoteNode, StickyNoteNodeData } from './nodes/StickyNoteNode';
 import { ActivityNode } from './nodes/ActivityNode';
 import { DecisionNode } from './nodes/DecisionNode';
 import { StartEndNode } from './nodes/StartEndNode';
@@ -45,6 +47,7 @@ const nodeTypes = {
   automation: AutomationNode,
   group: GroupNode,
   bpmnPool: BpmnPoolNode,
+  stickyNote: StickyNoteNode,
 };
 
 type CanvasMode = 'default' | 'comment' | 'note';
@@ -56,12 +59,12 @@ function FlowCanvasWithOverlays({
   slug,
   pool,
   threads,
-  notes,
+  noteNodes,
   canvasMode,
   onCommentCanvasClick,
   onNoteCanvasClick,
+  onNoteDragStop,
   onThreadUpdated,
-  onNotesUpdated,
 }: {
   initialNodes: BpmnNode[];
   initialEdges: BpmnEdge[];
@@ -69,15 +72,16 @@ function FlowCanvasWithOverlays({
   slug: string;
   pool?: string;
   threads: CommentThread[];
-  notes: StickyNoteType[];
+  noteNodes: Node<StickyNoteNodeData>[];
   canvasMode: CanvasMode;
   onCommentCanvasClick: (flowX: number, flowY: number, screenX: number, screenY: number) => void;
   onNoteCanvasClick: (x: number, y: number) => void;
+  onNoteDragStop: NodeDragHandler;
   onThreadUpdated: () => void;
-  onNotesUpdated: () => void;
 }) {
   const edgesWithStyle = useMemo(() => withBpmnEdgeStyle(initialEdges), [initialEdges]);
-  const [nodes, , onNodesChange] = useNodesState(initialNodes);
+  const allNodes = useMemo(() => [...initialNodes, ...noteNodes] as any[], [initialNodes, noteNodes]);
+  const [nodes, , onNodesChange] = useNodesState(allNodes as BpmnNode[]);
   const [edges, , onEdgesChange] = useEdgesState(edgesWithStyle);
   const flowRef = useRef<HTMLDivElement>(null);
 
@@ -88,6 +92,7 @@ function FlowCanvasWithOverlays({
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
+        onNodeDragStop={onNoteDragStop}
         nodeTypes={nodeTypes}
         fitView
         fitViewOptions={{ padding: 0.3, maxZoom: 1.5 }}
@@ -120,15 +125,7 @@ function FlowCanvasWithOverlays({
         </Panel>
       </ReactFlow>
 
-      {/* Sticky notes layer (below comments) */}
-      <StickyNotes
-        notes={notes}
-        noteMode={canvasMode === 'note'}
-        onCanvasClick={onNoteCanvasClick}
-        onNotesUpdated={onNotesUpdated}
-      />
-
-      {/* Comment pins layer (above sticky notes) */}
+      {/* Comment pins layer */}
       <CommentPins
         threads={threads}
         commentMode={canvasMode === 'comment'}
@@ -263,6 +260,44 @@ export default function ProcessView() {
     } catch { /* silently fail */ }
   }, [processId, loadNotes]);
 
+  // Handle sticky note update (content edit from node)
+  const handleNoteUpdate = useCallback(async (noteId: string, content: string) => {
+    await updateNote(noteId, { content });
+    loadNotes();
+  }, [loadNotes]);
+
+  // Handle sticky note delete from node
+  const handleNoteDelete = useCallback(async (noteId: string) => {
+    await deleteNote(noteId);
+    loadNotes();
+  }, [loadNotes]);
+
+  // Handle sticky note drag stop — save new position
+  const handleNoteDragStop: NodeDragHandler = useCallback((_event, node) => {
+    if (node.type !== 'stickyNote') return;
+    const noteId = (node.data as StickyNoteNodeData).noteId;
+    updateNote(noteId, { x: node.position.x, y: node.position.y }).then(loadNotes);
+  }, [loadNotes]);
+
+  // Convert sticky notes to ReactFlow nodes
+  const noteNodes: Node<StickyNoteNodeData>[] = useMemo(() => {
+    return stickyNotes.map((note) => ({
+      id: `note-${note.id}`,
+      type: 'stickyNote' as const,
+      position: { x: note.x, y: note.y },
+      draggable: true,
+      selectable: false,
+      connectable: false,
+      data: {
+        noteId: note.id,
+        content: note.content,
+        color: note.color,
+        onUpdate: handleNoteUpdate,
+        onDelete: handleNoteDelete,
+      },
+    }));
+  }, [stickyNotes, handleNoteUpdate, handleNoteDelete]);
+
   const handleCopyGraphJson = useCallback(() => {
     if (!proc) return;
     void navigator.clipboard.writeText(JSON.stringify(proc.graph, null, 2));
@@ -313,9 +348,9 @@ export default function ProcessView() {
           <FlowCanvasWithOverlays
             initialNodes={nodes} initialEdges={edges} title={proc.title} slug={proc.slug}
             pool={formatProcessGraphPoolLabel(proc.graph) ?? proc.graph.pool}
-            threads={threads} notes={stickyNotes} canvasMode={canvasMode}
+            threads={threads} noteNodes={noteNodes} canvasMode={canvasMode}
             onCommentCanvasClick={handleCommentCanvasClick} onNoteCanvasClick={handleNoteCanvasClick}
-            onThreadUpdated={loadThreads} onNotesUpdated={loadNotes}
+            onNoteDragStop={handleNoteDragStop} onThreadUpdated={loadThreads}
           />
         </ReactFlowProvider>
       </div>
@@ -398,9 +433,9 @@ export default function ProcessView() {
             <FlowCanvasWithOverlays
               initialNodes={nodes} initialEdges={edges} title={proc.title} slug={proc.slug}
               pool={formatProcessGraphPoolLabel(proc.graph) ?? proc.graph.pool}
-              threads={threads} notes={stickyNotes} canvasMode={canvasMode}
+              threads={threads} noteNodes={noteNodes} canvasMode={canvasMode}
               onCommentCanvasClick={handleCommentCanvasClick} onNoteCanvasClick={handleNoteCanvasClick}
-              onThreadUpdated={loadThreads} onNotesUpdated={loadNotes}
+              onNoteDragStop={handleNoteDragStop} onThreadUpdated={loadThreads}
             />
           </ReactFlowProvider>
 
