@@ -3,12 +3,10 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
-import { useRouter } from 'next/navigation';
-import { ArrowRight, Code2, LogOut, Search, Workflow } from 'lucide-react';
+import { ArrowRight, Code2, Search, Workflow } from 'lucide-react';
 import { EXAMPLE_PROCESSES } from '@/data/examples';
 import type { ProcessDefinition } from '@/lib/types';
 import { formatProcessGraphPoolLabel } from '@/lib/types';
-import { clearSessionCookie } from '@/lib/internal-auth';
 
 function processMatchesQuery(proc: ProcessDefinition, raw: string): boolean {
   const q = raw.trim().toLowerCase();
@@ -23,13 +21,6 @@ function processMatchesQuery(proc: ProcessDefinition, raw: string): boolean {
 const ProcessGraphEditor = dynamic(() => import('@/components/ProcessGraphEditor'), { ssr: false });
 
 export default function HomePage() {
-  const router = useRouter();
-
-  function logout() {
-    clearSessionCookie();
-    router.push('/login');
-    router.refresh();
-  }
   const [showEditor, setShowEditor] = useState(false);
   const [search, setSearch] = useState('');
 
@@ -75,15 +66,6 @@ export default function HomePage() {
             >
               <Code2 size={16} />
               Abrir Editor
-            </button>
-            <button
-              type="button"
-              onClick={logout}
-              className="flex items-center gap-2 px-3 py-2.5 border border-zinc-200 bg-white text-zinc-700 text-sm font-semibold rounded-bpmn hover:bg-zinc-50 transition-colors"
-              title="Sair"
-            >
-              <LogOut size={16} />
-              <span className="hidden sm:inline">Sair</span>
             </button>
           </div>
         </div>

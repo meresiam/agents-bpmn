@@ -192,11 +192,6 @@ export default function ProcessView() {
       {/* Header */}
       <header className="bg-white/90 backdrop-blur-md border-b border-zinc-200 px-6 py-3 flex items-center justify-between flex-shrink-0 shadow-sm">
         <div className="flex items-center gap-4">
-          <Link href="/" className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-900 font-medium">
-            <ArrowLeft size={14} />
-            Voltar aos fluxogramas
-          </Link>
-          <div className="h-4 w-px bg-zinc-200" />
           <div>
             <div className="flex items-center gap-2">
               <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-[0.08em]">{proc.client}</span>
