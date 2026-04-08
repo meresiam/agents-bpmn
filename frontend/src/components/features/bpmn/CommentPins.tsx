@@ -14,7 +14,7 @@ import { useAuth } from '@/contexts/auth.context';
 interface CommentPinsProps {
   threads: CommentThread[];
   commentMode: boolean;
-  onCanvasClick: (x: number, y: number) => void;
+  onCanvasClick: (flowX: number, flowY: number, screenX: number, screenY: number) => void;
   onThreadUpdated: () => void;
 }
 
@@ -158,8 +158,10 @@ export function CommentPins({
       }
       const rect = overlayRef.current?.getBoundingClientRect();
       if (!rect) return;
-      const flowPos = project({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-      onCanvasClick(flowPos.x, flowPos.y);
+      const screenX = e.clientX - rect.left;
+      const screenY = e.clientY - rect.top;
+      const flowPos = project({ x: screenX, y: screenY });
+      onCanvasClick(flowPos.x, flowPos.y, screenX, screenY);
     },
     [commentMode, onCanvasClick, project],
   );

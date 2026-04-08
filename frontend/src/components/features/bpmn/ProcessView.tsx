@@ -71,7 +71,7 @@ function FlowCanvasWithOverlays({
   threads: CommentThread[];
   notes: StickyNoteType[];
   canvasMode: CanvasMode;
-  onCommentCanvasClick: (x: number, y: number) => void;
+  onCommentCanvasClick: (flowX: number, flowY: number, screenX: number, screenY: number) => void;
   onNoteCanvasClick: (x: number, y: number) => void;
   onThreadUpdated: () => void;
   onNotesUpdated: () => void;
@@ -172,7 +172,7 @@ export default function ProcessView() {
   // Comments
   const [threads, setThreads] = useState<CommentThread[]>([]);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
-  const [newThreadPrompt, setNewThreadPrompt] = useState<{ x: number; y: number } | null>(null);
+  const [newThreadPrompt, setNewThreadPrompt] = useState<{ flowX: number; flowY: number; screenX: number; screenY: number } | null>(null);
   const [newThreadContent, setNewThreadContent] = useState('');
 
   // Sticky notes
@@ -235,9 +235,9 @@ export default function ProcessView() {
     return () => window.removeEventListener('keydown', handleKey);
   }, []);
 
-  // Comment canvas click
-  const handleCommentCanvasClick = useCallback((x: number, y: number) => {
-    setNewThreadPrompt({ x, y });
+  // Comment canvas click — receives both flow coords and screen coords
+  const handleCommentCanvasClick = useCallback((flowX: number, flowY: number, screenX: number, screenY: number) => {
+    setNewThreadPrompt({ flowX, flowY, screenX, screenY });
     setNewThreadContent('');
   }, []);
 
@@ -245,7 +245,7 @@ export default function ProcessView() {
   const handleCreateThread = useCallback(async () => {
     if (!newThreadPrompt || !newThreadContent.trim() || !processId) return;
     try {
-      await createThread(processId, newThreadPrompt.x, newThreadPrompt.y, newThreadContent.trim());
+      await createThread(processId, newThreadPrompt.flowX, newThreadPrompt.flowY, newThreadContent.trim());
       loadThreads();
       setNewThreadPrompt(null);
       setNewThreadContent('');
@@ -404,9 +404,15 @@ export default function ProcessView() {
             />
           </ReactFlowProvider>
 
-          {/* New comment thread input */}
+          {/* New comment thread input — positioned at click location */}
           {newThreadPrompt && (
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 bg-white border border-zinc-200 rounded-bpmn shadow-xl p-3 w-80">
+            <div
+              className="absolute z-30 bg-white border border-zinc-200 rounded-bpmn shadow-xl p-3 w-72"
+              style={{
+                left: Math.min(newThreadPrompt.screenX + 16, (typeof window !== 'undefined' ? window.innerWidth - 320 : 600)),
+                top: Math.min(newThreadPrompt.screenY - 20, (typeof window !== 'undefined' ? window.innerHeight - 160 : 400)),
+              }}
+            >
               <p className="text-[11px] font-semibold text-zinc-700 mb-2">Novo comentario</p>
               <form onSubmit={(e) => { e.preventDefault(); handleCreateThread(); }} className="flex gap-2">
                 <input type="text" value={newThreadContent} onChange={(e) => setNewThreadContent(e.target.value)} placeholder="Escreva seu comentario..." autoFocus className="flex-1 px-3 py-2 text-xs border border-zinc-200 rounded-bpmn bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10" />
