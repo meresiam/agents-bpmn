@@ -2,7 +2,7 @@
 FROM node:22-alpine AS deps
 WORKDIR /app
 COPY package.json yarn.lock .yarnrc ./
-RUN yarn install --frozen-lockfile --production=false
+RUN --mount=type=cache,target=/root/.yarn YARN_CACHE_FOLDER=/root/.yarn yarn install --frozen-lockfile --production=false
 
 # ── Stage 2: build ─────────────────────────────────────────────────
 FROM node:22-alpine AS builder
@@ -19,11 +19,8 @@ FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-
-# standalone output copies only what's needed
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-
 EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
