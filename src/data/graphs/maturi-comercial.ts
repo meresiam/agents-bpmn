@@ -1,8 +1,7 @@
 import { ProcessGraphJson } from '@/lib/types';
 
 /**
- * Maturi (Mórris Litvak) — um único `ProcessGraphJson` com duas piscinas (`pools`) ligadas por aresta (C4).
- *
+ * Processo Comercial + Onboarding — Maturi (Mórris Litvak)
  * Notação BPMN 2.0 — extraído de fluxo-comercial-maturi.bpmn
  *
  * Automações n8n:
@@ -23,49 +22,41 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
   version: 1,
   layout: 'LR',
   pool: 'Comercial + Onboarding — Maturi',
-  pools: [
-    { id: 'comercial', pool: 'Comercial — Maturi', lanes: ['Captação', 'SDR', 'Closer', 'Sistema'] },
-    { id: 'onboarding', pool: 'Onboarding — Maturi', lanes: ['Cliente', 'Closer', 'Sistema'] },
-  ],
+  lanes: ['Captação', 'SDR', 'Closer', 'Cliente', 'Sistema'],
   nodes: [
     // ─── EVENTOS DE INÍCIO — 5 canais de captação ───────────────────────────
     {
       id: 'Start_Form',
       kind: 'startEnd',
-      poolId: 'comercial',
-      label: 'Lead via\nFormulário\n(Light Forms)',
+      label: 'Lead via Formulário',
       lane: 'Captação',
       bpmn: { event: 'start' },
     },
     {
       id: 'Start_Indicacao',
       kind: 'startEnd',
-      poolId: 'comercial',
-      label: 'Lead via\nIndicação',
+      label: 'Lead via Indicação',
       lane: 'Captação',
       bpmn: { event: 'start' },
     },
     {
       id: 'Start_Evento',
       kind: 'startEnd',
-      poolId: 'comercial',
-      label: 'Lead via\nEvento',
+      label: 'Lead via Evento',
       lane: 'Captação',
       bpmn: { event: 'start' },
     },
     {
       id: 'Start_Reativacao',
       kind: 'startEnd',
-      poolId: 'comercial',
-      label: 'Reativação de\nLead Inativo (30d)',
+      label: 'Reativação (30d)',
       lane: 'Captação',
       bpmn: { event: 'start' },
     },
     {
       id: 'Start_Prospeccao',
       kind: 'startEnd',
-      poolId: 'comercial',
-      label: 'Início Prospecção\nAtiva (SDR)',
+      label: 'Prospecção Ativa (SDR)',
       lane: 'SDR',
       bpmn: { event: 'start' },
     },
@@ -74,7 +65,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'Auto_FormToClickup',
       kind: 'automation',
-      poolId: 'comercial',
       label: '[n8n C1]\nWebhook POST /webhook/orcamento\nReceber dados do Light Forms',
       lane: 'Sistema',
       bpmn: { task: 'serviceTask' },
@@ -82,7 +72,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'GW_Duplicata',
       kind: 'decision',
-      poolId: 'comercial',
       label: 'E-mail já existe\nno ClickUp?',
       lane: 'Sistema',
       bpmn: { gateway: 'exclusive' },
@@ -90,7 +79,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'Auto_AdicionarComentario',
       kind: 'automation',
-      poolId: 'comercial',
       label: '[n8n C1]\nAdicionar comentário\nna task existente',
       lane: 'Sistema',
       bpmn: { task: 'serviceTask' },
@@ -98,8 +86,7 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'End_DuplicataAtualizada',
       kind: 'startEnd',
-      poolId: 'comercial',
-      label: 'Lead Duplicado\n(Task Atualizada)',
+      label: 'Lead Duplicado',
       lane: 'Sistema',
       bpmn: { event: 'end' },
     },
@@ -108,7 +95,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'RegistrarLead',
       kind: 'activity',
-      poolId: 'comercial',
       label: 'Registrar Lead no ClickUp\n[Status: Lead Novo]\nCFs: E-mail, Origem, Produto',
       lane: 'SDR',
       bpmn: { task: 'userTask' },
@@ -116,7 +102,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'PrimeiroContato',
       kind: 'activity',
-      poolId: 'comercial',
       label: '1º Contato SDR\n(WhatsApp / Ligação)\n[Status: Primeiro Contato]',
       lane: 'SDR',
       bpmn: { task: 'userTask' },
@@ -124,7 +109,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'GW_Atendeu',
       kind: 'decision',
-      poolId: 'comercial',
       label: 'Atendeu?',
       lane: 'SDR',
       bpmn: { gateway: 'exclusive' },
@@ -132,7 +116,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'Tentativas',
       kind: 'activity',
-      poolId: 'comercial',
       label: 'Tentar Contato 3x em 48h\n(WhatsApp + Ligação)',
       lane: 'SDR',
       bpmn: { task: 'userTask' },
@@ -140,7 +123,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'GW_AtendeuApos',
       kind: 'decision',
-      poolId: 'comercial',
       label: 'Atendeu após\n3 tentativas?',
       lane: 'SDR',
       bpmn: { gateway: 'exclusive' },
@@ -148,7 +130,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'Auto_NurturingFrio',
       kind: 'automation',
-      poolId: 'comercial',
       label: '[Brevo]\nSequência Nurturing Frio\n5 emails / 15 dias',
       lane: 'Sistema',
       bpmn: { task: 'serviceTask' },
@@ -156,15 +137,13 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'End_NurturingFrio',
       kind: 'startEnd',
-      poolId: 'comercial',
-      label: 'Em Nurturing Frio\n(Sem Contato)',
+      label: 'Nurturing Frio',
       lane: 'Sistema',
       bpmn: { event: 'end' },
     },
     {
       id: 'Qualificar',
       kind: 'activity',
-      poolId: 'comercial',
       label: 'Qualificar Lead\n(Dor · Budget · Perfil · Momento)\n[Status: Qualificando]',
       lane: 'SDR',
       bpmn: { task: 'userTask' },
@@ -172,7 +151,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'GW_Qualificado',
       kind: 'decision',
-      poolId: 'comercial',
       label: 'Qualificado?',
       lane: 'SDR',
       bpmn: { gateway: 'exclusive' },
@@ -180,7 +158,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'RegistrarDesqualificacao',
       kind: 'activity',
-      poolId: 'comercial',
       label: 'Registrar Desqualificação\n+ Motivo no ClickUp',
       lane: 'SDR',
       bpmn: { task: 'userTask' },
@@ -188,15 +165,13 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'End_Arquivado',
       kind: 'startEnd',
-      poolId: 'comercial',
-      label: 'Arquivado\n(Desqualificado)',
+      label: 'Arquivado',
       lane: 'SDR',
       bpmn: { event: 'end' },
     },
     {
       id: 'AtualizarQualificado',
       kind: 'activity',
-      poolId: 'comercial',
       label: 'Atualizar ClickUp\n[Status: Qualificado]\nPreencher CFs: Produto, Budget',
       lane: 'SDR',
       bpmn: { task: 'userTask' },
@@ -204,7 +179,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'AgendarSessao',
       kind: 'activity',
-      poolId: 'comercial',
       label: 'Mover → Reunião Agendada\n+ Preencher start_date, due_date\ne campo WhatsApp no ClickUp',
       lane: 'SDR',
       bpmn: { task: 'userTask' },
@@ -212,7 +186,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'GW_ParallelAgendar',
       kind: 'decision',
-      poolId: 'comercial',
       label: '(paralelo)',
       lane: 'SDR',
       bpmn: { gateway: 'parallel' },
@@ -222,7 +195,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'Auto_EnviarConfirmacao',
       kind: 'automation',
-      poolId: 'comercial',
       label: '[Brevo]\nEmail Confirmação\nde Agendamento',
       lane: 'Sistema',
       bpmn: { task: 'serviceTask' },
@@ -230,7 +202,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'Auto_LembreteD1',
       kind: 'automation',
-      poolId: 'comercial',
       label: '[Brevo D-1]\nLembrete da Sessão\n(Email)',
       lane: 'Sistema',
       bpmn: { task: 'serviceTask' },
@@ -238,7 +209,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'Auto_GoogleMeet',
       kind: 'automation',
-      poolId: 'comercial',
       label: '[n8n C2]\nCriar evento Google Calendar\n+ gerar link Google Meet',
       lane: 'Sistema',
       bpmn: { task: 'serviceTask' },
@@ -246,7 +216,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'Auto_AgendaComercial',
       kind: 'automation',
-      poolId: 'comercial',
       label: '[n8n C2]\nCriar task espelho\nAgenda Comercial (ClickUp)',
       lane: 'Sistema',
       bpmn: { task: 'serviceTask' },
@@ -254,7 +223,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'Auto_WhatsAppMeet',
       kind: 'automation',
-      poolId: 'comercial',
       label: '[Zappfy C2]\nEnviar link Google Meet\nvia WhatsApp para o Lead',
       lane: 'Sistema',
       bpmn: { task: 'serviceTask' },
@@ -262,7 +230,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'Auto_NotificarCloser',
       kind: 'automation',
-      poolId: 'comercial',
       label: '[Zappfy]\nNotificar Closer com Briefing\n(Nome · Produto · Budget · Dor)',
       lane: 'Sistema',
       bpmn: { task: 'serviceTask' },
@@ -272,7 +239,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'ConduzirSessao',
       kind: 'activity',
-      poolId: 'comercial',
       label: 'Conduzir Sessão Diagnóstico\n(30min — Google Meet)\n[Status: Sessão Realizada]',
       lane: 'Closer',
       bpmn: { task: 'userTask' },
@@ -280,7 +246,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'GW_Interesse',
       kind: 'decision',
-      poolId: 'comercial',
       label: 'Interesse em\nAvançar?',
       lane: 'Closer',
       bpmn: { gateway: 'exclusive' },
@@ -288,7 +253,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'RegistrarObjecao',
       kind: 'activity',
-      poolId: 'comercial',
       label: 'Registrar Objeção\n/ Sem Interesse + Motivo\n(Timing · Budget · Produto)',
       lane: 'Closer',
       bpmn: { task: 'userTask' },
@@ -296,7 +260,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'GW_Recuperavel',
       kind: 'decision',
-      poolId: 'comercial',
       label: 'Lead Recuperável\n(Futuro)?',
       lane: 'Closer',
       bpmn: { gateway: 'exclusive' },
@@ -304,15 +267,13 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'End_Perdido1',
       kind: 'startEnd',
-      poolId: 'comercial',
-      label: 'Perdido\n(Sem Fit)',
+      label: 'Perdido (Sem Fit)',
       lane: 'Closer',
       bpmn: { event: 'end' },
     },
     {
       id: 'Auto_MoverRecuperacao',
       kind: 'automation',
-      poolId: 'comercial',
       label: '[n8n]\nMover → Recuperação de Vendas\nSequência Reengajamento 30d',
       lane: 'Sistema',
       bpmn: { task: 'serviceTask' },
@@ -320,8 +281,7 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'End_Recuperacao1',
       kind: 'startEnd',
-      poolId: 'comercial',
-      label: 'Em Recuperação\n(Sequência 30d)',
+      label: 'Em Recuperação (30d)',
       lane: 'Sistema',
       bpmn: { event: 'end' },
     },
@@ -330,7 +290,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'IdentificarProduto',
       kind: 'activity',
-      poolId: 'comercial',
       label: 'Identificar Produto Ideal\npelo Perfil do Lead\n• Club · PGI · Octus PRO',
       lane: 'Closer',
       bpmn: { task: 'userTask' },
@@ -338,7 +297,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'ApresentarProposta',
       kind: 'activity',
-      poolId: 'comercial',
       label: 'Apresentar Proposta Verbal\n(Pitch · Condições · Garantia)\n[Status: Em Proposta]',
       lane: 'Closer',
       bpmn: { task: 'userTask' },
@@ -346,7 +304,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'TagProposta',
       kind: 'activity',
-      poolId: 'comercial',
       label: "Adicionar tag 'Gerar Proposta'\nno ClickUp [dispara C3]\nPreencher: Valor, Parcelas, Tipo",
       lane: 'Closer',
       bpmn: { task: 'userTask' },
@@ -356,7 +313,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'Auto_GerarSlides',
       kind: 'automation',
-      poolId: 'comercial',
       label: '[n8n C3]\nCopiar template Google Slides\npor produto · Substituir variáveis',
       lane: 'Sistema',
       bpmn: { task: 'serviceTask' },
@@ -364,7 +320,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'Auto_EnviarPropostaZap',
       kind: 'automation',
-      poolId: 'comercial',
       label: '[Zappfy C3]\nExportar Slides como PDF\nEnviar por WhatsApp para o Lead',
       lane: 'Sistema',
       bpmn: { task: 'serviceTask' },
@@ -372,7 +327,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'GW_ParallelProposta',
       kind: 'decision',
-      poolId: 'comercial',
       label: '(paralelo)',
       lane: 'Sistema',
       bpmn: { gateway: 'parallel' },
@@ -380,7 +334,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'Auto_FollowupD2',
       kind: 'automation',
-      poolId: 'comercial',
       label: '[Brevo D+2]\nEmail Follow-up Proposta\n(Prova Social · Urgência)',
       lane: 'Sistema',
       bpmn: { task: 'serviceTask' },
@@ -388,8 +341,7 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'End_FollowupD2',
       kind: 'startEnd',
-      poolId: 'comercial',
-      label: 'Follow-up D+2\nEnviado',
+      label: 'Follow-up D+2 Enviado',
       lane: 'Sistema',
       bpmn: { event: 'end' },
     },
@@ -398,7 +350,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'GW_Resposta',
       kind: 'decision',
-      poolId: 'comercial',
       label: 'Resposta do Lead?',
       lane: 'Closer',
       bpmn: { gateway: 'exclusive' },
@@ -406,7 +357,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'TratarObjecao',
       kind: 'activity',
-      poolId: 'comercial',
       label: 'Tratar Objeção\n(Ligação / WhatsApp — Closer)\n[Status: Em Negociação]',
       lane: 'Closer',
       bpmn: { task: 'userTask' },
@@ -414,7 +364,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'FollowupD5Closer',
       kind: 'activity',
-      poolId: 'comercial',
       label: 'Follow-up D+5\n(Ligação Direta — Closer)\nÚltima tentativa',
       lane: 'Closer',
       bpmn: { task: 'userTask' },
@@ -422,7 +371,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'GW_Respondeu',
       kind: 'decision',
-      poolId: 'comercial',
       label: 'Respondeu?',
       lane: 'Closer',
       bpmn: { gateway: 'exclusive' },
@@ -430,7 +378,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'RegistrarGanho',
       kind: 'activity',
-      poolId: 'comercial',
       label: 'Registrar Ganho no ClickUp\n[Status: Ganho ✓]\nCFs: Valor, Produto Comprado',
       lane: 'Closer',
       bpmn: { task: 'userTask' },
@@ -438,7 +385,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'RegistrarPerdaFinal',
       kind: 'activity',
-      poolId: 'comercial',
       label: 'Registrar Perda + Motivo\nno ClickUp [Status: Perdido]',
       lane: 'Closer',
       bpmn: { task: 'userTask' },
@@ -446,7 +392,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'Auto_MoverRecuperacao2',
       kind: 'automation',
-      poolId: 'comercial',
       label: '[n8n]\nMover → Recuperação\nTag: Perdido em Negociação (60d)',
       lane: 'Sistema',
       bpmn: { task: 'serviceTask' },
@@ -454,8 +399,7 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'End_Perdido2',
       kind: 'startEnd',
-      poolId: 'comercial',
-      label: 'Perdido\n(Negociação)',
+      label: 'Perdido (Negociação)',
       lane: 'Sistema',
       bpmn: { event: 'end' },
     },
@@ -464,7 +408,6 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'StatusNegocioFechado',
       kind: 'activity',
-      poolId: 'comercial',
       label: 'Mover Status → Negócio Fechado\nno ClickUp [dispara C4]',
       lane: 'Closer',
       bpmn: { task: 'userTask' },
@@ -472,65 +415,69 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'Auto_EnviarFormOnboarding',
       kind: 'automation',
-      poolId: 'comercial',
       label: '[n8n C4]\nEnviar link Light Forms Onboarding\nvia WhatsApp (Zappfy) + Email (Brevo)',
       lane: 'Sistema',
       bpmn: { task: 'serviceTask' },
     },
 
-    // ─── Pool Onboarding (ligado ao Comercial pela aresta C4) ───────────────
+    // ─── CLIENTE — Onboarding ───────────────────────────────────────────────
     {
       id: 'ClientePreencheForm',
       kind: 'activity',
-      poolId: 'onboarding',
       label: 'Preencher Formulário\nde Onboarding (Light Forms)\nDados: CPF · Endereço · Cônjuge',
       lane: 'Cliente',
       bpmn: { task: 'userTask' },
     },
+
+    // ─── SISTEMA O1 — Form → Gerar Contrato ────────────────────────────────
     {
       id: 'Auto_GerarContrato',
       kind: 'automation',
-      poolId: 'onboarding',
       label: '[n8n O1]\nGPT: cláusula pagamento + qualificação\nCopiar template Google Docs por produto\nCriar task Gestão Contratual',
       lane: 'Sistema',
       bpmn: { task: 'serviceTask' },
     },
+
+    // ─── CLOSER — Revisar Contrato ──────────────────────────────────────────
     {
       id: 'AvaliarContrato',
       kind: 'activity',
-      poolId: 'onboarding',
       label: 'Revisar Contrato no Google Docs\nCorrigir se necessário\n[Status: Avaliação & Assinatura — dispara O2]',
       lane: 'Closer',
       bpmn: { task: 'userTask' },
     },
+
+    // ─── SISTEMA O2 — Enviar para Autentique ───────────────────────────────
     {
       id: 'Auto_EnviarAutentique',
       kind: 'automation',
-      poolId: 'onboarding',
       label: '[n8n O2]\nExportar Google Doc como PDF\nCriar documento Autentique\nAdicionar signatários (Cliente + Maturi)',
       lane: 'Sistema',
       bpmn: { task: 'serviceTask' },
     },
+
+    // ─── CLIENTE — Assinar ──────────────────────────────────────────────────
     {
       id: 'ClienteAssina',
       kind: 'activity',
-      poolId: 'onboarding',
       label: 'Assinar Contrato\nvia Autentique\n(link recebido por email/WhatsApp)',
       lane: 'Cliente',
       bpmn: { task: 'userTask' },
     },
+
+    // ─── SISTEMA O3 — Assinatura → Ativar Cliente ──────────────────────────
     {
       id: 'Auto_EscritorioAssina',
       kind: 'automation',
-      poolId: 'onboarding',
       label: '[n8n O3]\nAssinar automaticamente pela Maturi\nClickUp: contrato → Em Vigor · cliente → Ativos\nBaixar PDF + Criar task de projeto',
       lane: 'Sistema',
       bpmn: { task: 'serviceTask' },
     },
+
+    // ─── SISTEMA O4 — Cliente Ativo → Grupo + Drive ────────────────────────
     {
       id: 'Auto_AtivarCliente',
       kind: 'automation',
-      poolId: 'onboarding',
       label: '[n8n O4]\nCriar grupo WhatsApp (Zappfy)\n+ Pasta Google Drive\nAtualizar task: Link Grupo + Link Drive',
       lane: 'Sistema',
       bpmn: { task: 'serviceTask' },
@@ -538,8 +485,7 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     {
       id: 'End_ClienteAtivo',
       kind: 'startEnd',
-      poolId: 'onboarding',
-      label: 'CLIENTE ATIVO ✓\nGrupo + Drive criados\nProjeto iniciado',
+      label: 'Cliente Ativo',
       lane: 'Sistema',
       bpmn: { event: 'end' },
     },
@@ -614,18 +560,24 @@ export const MATURI_COMERCIAL_GRAPH: ProcessGraphJson = {
     { from: 'RegistrarPerdaFinal', to: 'Auto_MoverRecuperacao2' },
     { from: 'Auto_MoverRecuperacao2', to: 'End_Perdido2' },
 
-    // C4 — ligação entre piscinas (Comercial → Onboarding)
+    // C4 — Negócio Fechado → Onboarding
     { from: 'RegistrarGanho', to: 'StatusNegocioFechado' },
     { from: 'StatusNegocioFechado', to: 'Auto_EnviarFormOnboarding' },
-    { from: 'Auto_EnviarFormOnboarding', to: 'ClientePreencheForm', label: 'C4' },
+    { from: 'Auto_EnviarFormOnboarding', to: 'ClientePreencheForm' },
 
-    // O1 — O4 (pool Onboarding)
+    // O1 — Form → Contrato
     { from: 'ClientePreencheForm', to: 'Auto_GerarContrato' },
     { from: 'Auto_GerarContrato', to: 'AvaliarContrato' },
+
+    // O2 — Autentique
     { from: 'AvaliarContrato', to: 'Auto_EnviarAutentique' },
     { from: 'Auto_EnviarAutentique', to: 'ClienteAssina' },
+
+    // O3 — Assinatura → Ativar
     { from: 'ClienteAssina', to: 'Auto_EscritorioAssina' },
     { from: 'Auto_EscritorioAssina', to: 'Auto_AtivarCliente' },
+
+    // O4 — Cliente Ativo
     { from: 'Auto_AtivarCliente', to: 'End_ClienteAtivo' },
   ],
 };
