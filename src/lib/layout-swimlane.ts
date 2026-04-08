@@ -7,7 +7,8 @@ const LANE_LABEL_COL = 118;
 /** Onde o fluxo (nós) começa em X, à direita do título do pool e dos nomes das raias */
 export const SWIMLANE_CONTENT_OFFSET_X = POOL_NAME_COL + LANE_LABEL_COL;
 const CONTENT_PADDING_TOP = 16;
-const LANE_HEIGHT = 178;
+/** Altura mínima por raia: precisa caber tasks com label longo + ramos paralelos sem “achatar” demais o Y */
+const LANE_HEIGHT = 236;
 const BOTTOM_PADDING = 24;
 const RIGHT_PADDING = 56;
 
@@ -34,9 +35,11 @@ export function getSwimlaneLayoutedElements(
     poolName: string;
     lanes: string[];
     direction?: 'LR' | 'TB';
+    /** Id único do nó React Flow da piscina (multi-pool precisa de ids distintos). */
+    poolDomId?: string;
   }
 ): { nodes: BpmnNode[]; edges: BpmnEdge[] } {
-  const { poolName, lanes, direction = 'LR' } = options;
+  const { poolName, lanes, direction = 'LR', poolDomId = '__bpmn_pool__' } = options;
   if (lanes.length === 0) {
     throw new Error('swimlane: informe ao menos uma raia em graph.lanes');
   }
@@ -46,11 +49,12 @@ export function getSwimlaneLayoutedElements(
   dagreGraph.setDefaultEdgeLabel(() => ({}));
   dagreGraph.setGraph({
     rankdir: direction,
-    nodesep: 56,
-    ranksep: 88,
-    edgesep: 28,
-    marginx: 24,
-    marginy: 24,
+    nodesep: 72,
+    ranksep: 112,
+    edgesep: 36,
+    marginx: 32,
+    marginy: 32,
+    ranker: 'network-simplex',
   });
 
   for (const node of contentNodes) {
@@ -101,7 +105,7 @@ export function getSwimlaneLayoutedElements(
     item.x += shiftX;
   }
 
-  const LANE_VERT_PAD = 10;
+  const LANE_VERT_PAD = 14;
   const byLane = new Map<number, LaneItem[]>();
   for (const item of laneItems) {
     const list = byLane.get(item.laneIndex) ?? [];
@@ -137,8 +141,12 @@ export function getSwimlaneLayoutedElements(
       };
     }
 
-    items.sort((a, b) => a.node.position.x - b.node.position.x);
-    const MIN_GAP = 28;
+    items.sort((a, b) => {
+      const dx = a.node.position.x - b.node.position.x;
+      if (Math.abs(dx) < 0.5) return a.node.id.localeCompare(b.node.id);
+      return dx;
+    });
+    const MIN_GAP = 44;
     let prevRight = -Infinity;
     for (const item of items) {
       let x = item.node.position.x;
@@ -179,7 +187,7 @@ export function getSwimlaneLayoutedElements(
   };
 
   const poolNode: BpmnNode = {
-    id: '__bpmn_pool__',
+    id: poolDomId,
     type: 'bpmnPool',
     position: { x: 0, y: 0 },
     draggable: false,

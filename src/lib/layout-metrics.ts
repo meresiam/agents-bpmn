@@ -2,6 +2,7 @@
 export const NODE_WIDTHS: Record<string, number> = {
   /** max-w-[200px] nas tasks + padding */
   activity: 200,
+  /** losango 48px + rótulo abaixo */
   decision: 130,
   startEnd: 36,
   automation: 200,
@@ -9,11 +10,11 @@ export const NODE_WIDTHS: Record<string, number> = {
 };
 
 export const NODE_HEIGHTS: Record<string, number> = {
-  /** fase (uppercase) + label 1–2 linhas + pt/pb (Activity/Automation) */
-  activity: 96,
-  decision: 76,
+  /** fase + label com várias linhas (\n) — subestimar gera nós sobrepostos e handles desalinhados */
+  activity: 124,
+  decision: 88,
   startEnd: 36,
-  automation: 96,
+  automation: 124,
   bpmnPool: 200,
 };
 

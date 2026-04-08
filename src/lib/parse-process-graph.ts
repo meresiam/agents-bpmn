@@ -102,6 +102,9 @@ export function validateProcessGraph(data: unknown): ProcessGraphJson {
     if (n.lane !== undefined && typeof n.lane !== 'string') {
       throw new Error(`nodes[${i}].lane deve ser string, se existir.`);
     }
+    if (n.poolId !== undefined && typeof n.poolId !== 'string') {
+      throw new Error(`nodes[${i}].poolId deve ser string, se existir.`);
+    }
     if (n.bpmn !== undefined) {
       if (!isRecord(n.bpmn)) throw new Error(`nodes[${i}].bpmn deve ser um objeto.`);
       validateBpmnField(i, n.bpmn);
@@ -130,6 +133,79 @@ export function validateProcessGraph(data: unknown): ProcessGraphJson {
   const layout = data.layout;
   if (layout !== undefined && layout !== 'LR' && layout !== 'TB') {
     throw new Error('layout deve ser "LR" ou "TB", se informado.');
+  }
+
+  const poolsRaw = data.pools;
+  const isMultiPool = Array.isArray(poolsRaw) && poolsRaw.length > 0;
+
+  if (isMultiPool) {
+    const seenPoolIds = new Set<string>();
+    const laneByPoolId = new Map<string, string[]>();
+    for (let pi = 0; pi < poolsRaw.length; pi++) {
+      const p = poolsRaw[pi];
+      if (!isRecord(p)) throw new Error(`pools[${pi}] deve ser um objeto.`);
+      const pid = p.id;
+      const pname = p.pool;
+      const planes = p.lanes;
+      if (typeof pid !== 'string' || !pid.trim()) {
+        throw new Error(`pools[${pi}].id deve ser uma string não vazia.`);
+      }
+      if (seenPoolIds.has(pid)) {
+        throw new Error(`pools: id de piscina duplicado "${pid}".`);
+      }
+      seenPoolIds.add(pid);
+      if (typeof pname !== 'string' || !pname.trim()) {
+        throw new Error(`pools[${pi}].pool deve ser uma string não vazia.`);
+      }
+      if (!Array.isArray(planes) || planes.length === 0) {
+        throw new Error(`pools[${pi}].lanes deve ser um array não vazio de strings.`);
+      }
+      const laneArr: string[] = [];
+      for (let j = 0; j < planes.length; j++) {
+        const item = planes[j];
+        if (typeof item !== 'string' || !item.trim()) {
+          throw new Error(`pools[${pi}].lanes[${j}] deve ser string não vazia.`);
+        }
+        laneArr.push(item);
+      }
+      laneByPoolId.set(pid, laneArr);
+    }
+
+    for (let i = 0; i < nodesRaw.length; i++) {
+      const n = nodesRaw[i];
+      if (!isRecord(n)) continue;
+      if (n.kind === 'group') continue;
+      const pid = n.poolId;
+      if (typeof pid !== 'string' || !pid.trim()) {
+        throw new Error(
+          `nodes[${i}]: com "pools" definido, cada nó deve ter "poolId" igual a um pools[].id.`
+        );
+      }
+      if (!seenPoolIds.has(pid)) {
+        throw new Error(`nodes[${i}].poolId "${pid}" não corresponde a nenhum pools[].id.`);
+      }
+      const lanesForPool = laneByPoolId.get(pid)!;
+      const lane = n.lane;
+      const phase = n.phase;
+      const key =
+        typeof lane === 'string' && lane.trim()
+          ? lane
+          : typeof phase === 'string' && phase.trim()
+            ? phase
+            : '';
+      if (!key) {
+        throw new Error(
+          `nodes[${i}]: com "pools", informe "lane" ou "phase" para posicionar o nó na raia da piscina.`
+        );
+      }
+      if (!lanesForPool.includes(key)) {
+        throw new Error(
+          `nodes[${i}]: lane/phase "${key}" não consta em pools[].lanes da piscina "${pid}".`
+        );
+      }
+    }
+
+    return data as unknown as ProcessGraphJson;
   }
 
   const lanesRaw = data.lanes;
@@ -189,6 +265,7 @@ export function graphToReactFlow(graph: ProcessGraphJson): { nodes: BpmnNode[]; 
       actor: getActorFromLabel(n.label),
       phase: n.phase,
       lane: n.lane,
+      poolId: n.poolId,
       nodeType: n.kind,
       bpmn: mergedBpmn,
     };

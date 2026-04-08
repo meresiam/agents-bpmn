@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbo",
-    "dev:clean": "npm run clean && next dev --turbo",
+    "dev:clean": "yarn clean && next dev --turbo",
     "build": "next build",
-    "build:clean": "npm run clean && next build",
+    "build:clean": "yarn clean && next build",
     "start": "next start",
     "lint": "next lint",
     "clean": "rm -rf .next"

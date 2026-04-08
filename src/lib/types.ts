@@ -41,8 +41,10 @@ export interface BpmnNodeData {
   label: string;
   actor: ActorType;
   phase?: string;
-  /** Raia BPMN (deve existir em graph.lanes); se vazio, usa phase ou primeira raia */
+  /** Raia BPMN (deve existir em graph.lanes ou nas lanes do pool); se vazio, usa phase ou primeira raia */
   lane?: string;
+  /** Presente no modo `graph.pools` — usado pelo layout multi-piscina */
+  poolId?: string;
   nodeType: BpmnNodeType;
   icon?: string;
   bpmn?: BpmnSemantic;
@@ -67,16 +69,27 @@ export interface BpmnPoolNodeData {
 }
 
 export type BpmnNode = Node<BpmnNodeData | BpmnGroupData | BpmnPoolNodeData>;
-export type BpmnEdge = Edge & { data?: { label?: string } };
+export type BpmnEdge = Edge & { data?: { label?: string; crossPool?: boolean } };
 
 export interface ProcessGraphNodeJson {
   id: string;
   kind: BpmnNodeType;
   label: string;
   phase?: string;
-  /** Nome da raia BPMN (deve constar em graph.lanes) */
+  /** Nome da raia BPMN (deve constar em graph.lanes ou nas lanes do pool em `graph.pools`) */
   lane?: string;
+  /**
+   * Quando `graph.pools` está definido, identifica a piscina deste nó (deve coincidir com `pools[].id`).
+   */
+  poolId?: string;
   bpmn?: BpmnSemantic;
+}
+
+/** Metadados de uma piscina no modo multi-pool (`graph.pools`). */
+export interface ProcessGraphPoolSectionJson {
+  id: string;
+  pool: string;
+  lanes: string[];
 }
 
 export interface ProcessGraphEdgeJson {
@@ -89,15 +102,28 @@ export interface ProcessGraphEdgeJson {
 export interface ProcessGraphJson {
   version?: number;
   layout?: 'LR' | 'TB';
-  /** Nome da piscina (participante / processo) */
+  /** Nome exibido / legado: piscina única quando `pools` não é usado */
   pool?: string;
   /**
    * Raias na ordem vertical (de cima para baixo).
-   * Quando presente, o layout usa piscina + raias BPMN 2.0.
+   * Modo legado: uma piscina; use junto com `pool`.
    */
   lanes?: string[];
+  /**
+   * Várias piscinas no mesmo diagrama (empilhadas). Cada nó em `nodes` deve ter `poolId`
+   * referenciando um `id` desta lista. Arestas podem ligar nós de piscinas diferentes.
+   */
+  pools?: ProcessGraphPoolSectionJson[];
   nodes: ProcessGraphNodeJson[];
   edges: ProcessGraphEdgeJson[];
+}
+
+/** Rótulo de pool(s) para UI (legenda do diagrama). */
+export function formatProcessGraphPoolLabel(graph: ProcessGraphJson): string | undefined {
+  if (graph.pools && graph.pools.length > 0) {
+    return graph.pools.map((p) => p.pool).join(' · ');
+  }
+  return graph.pool?.trim() || undefined;
 }
 
 export interface ProcessDefinition {

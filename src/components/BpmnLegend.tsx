@@ -193,6 +193,25 @@ export function BpmnLegend({ align = 'right' }: BpmnLegendProps) {
                 </svg>
               }
             />
+            <LegendRow
+              title="Entre pools"
+              desc="Linha tracejada liga nós de piscinas diferentes no mesmo diagrama (handoff de processo, ex.: comercial → onboarding)."
+              icon={
+                <svg width="48" height="22" viewBox="0 0 56 24" className="text-zinc-500" aria-hidden>
+                  <line
+                    x1="2"
+                    y1="12"
+                    x2="40"
+                    y2="12"
+                    stroke="currentColor"
+                    strokeWidth="1.35"
+                    strokeLinecap="round"
+                    strokeDasharray="4 3"
+                  />
+                  <path d="M38 8 L46 12 L38 16" fill="none" stroke="currentColor" strokeWidth="1.35" strokeLinejoin="round" />
+                </svg>
+              }
+            />
 
             <p className="text-[9px] font-semibold uppercase tracking-[0.1em] text-zinc-400 mt-3 mb-1">Organização</p>
             <LegendRow

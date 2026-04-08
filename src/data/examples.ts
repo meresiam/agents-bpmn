@@ -17,9 +17,9 @@ export const EXAMPLE_PROCESSES: ProcessDefinition[] = [
     id: "maturi-comercial",
     client: "maturi",
     process: "comercial",
-    title: "Processo Comercial + Onboarding",
+    title: "Maturi — Comercial + Onboarding",
     description:
-      "Fluxo completo Maturi: captação (5 canais) → SDR → Closer → proposta Google Slides → contrato Autentique → ativação (WhatsApp + Drive). Stack: ClickUp · n8n · Zappfy · Brevo · Google · Autentique · GPT. Produtos: Club · PGI · Octus PRO.",
+      "Dois pools no mesmo diagrama: comercial (captação → SDR → Closer → proposta → C4) conectado ao onboarding (form → contrato → Autentique → ativação). Stack: ClickUp · n8n · Zappfy · Brevo · Google · Autentique · GPT.",
     updatedAt: "2026-04-07",
     graph: MATURI_COMERCIAL_GRAPH,
   },

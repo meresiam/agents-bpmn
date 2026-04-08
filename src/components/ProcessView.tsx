@@ -19,7 +19,7 @@ import 'reactflow/dist/style.css';
 import { getProcess } from '@/data/examples';
 import { graphToReactFlow } from '@/lib/parse-process-graph';
 import { layoutProcessGraph } from '@/lib/layout';
-import { BpmnNode, BpmnEdge } from '@/lib/types';
+import { BpmnNode, BpmnEdge, formatProcessGraphPoolLabel } from '@/lib/types';
 import { ActivityNode } from './nodes/ActivityNode';
 import { DecisionNode } from './nodes/DecisionNode';
 import { StartEndNode } from './nodes/StartEndNode';
@@ -180,7 +180,7 @@ export default function ProcessView() {
             initialEdges={edges}
             title={proc.title}
             client={proc.client.toUpperCase()}
-            pool={proc.graph.pool}
+            pool={formatProcessGraphPoolLabel(proc.graph) ?? proc.graph.pool}
           />
         </ReactFlowProvider>
       </div>
@@ -267,7 +267,7 @@ export default function ProcessView() {
               initialEdges={edges}
               title={proc.title}
               client={proc.client.toUpperCase()}
-              pool={proc.graph.pool}
+              pool={formatProcessGraphPoolLabel(proc.graph) ?? proc.graph.pool}
             />
           </ReactFlowProvider>
         </div>

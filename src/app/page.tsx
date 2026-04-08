@@ -7,12 +7,13 @@ import { useRouter } from 'next/navigation';
 import { ArrowRight, Code2, LogOut, Search, Workflow } from 'lucide-react';
 import { EXAMPLE_PROCESSES } from '@/data/examples';
 import type { ProcessDefinition } from '@/lib/types';
+import { formatProcessGraphPoolLabel } from '@/lib/types';
 import { clearSessionCookie } from '@/lib/internal-auth';
 
 function processMatchesQuery(proc: ProcessDefinition, raw: string): boolean {
   const q = raw.trim().toLowerCase();
   if (!q) return true;
-  const pool = proc.graph.pool ?? '';
+  const pool = formatProcessGraphPoolLabel(proc.graph) ?? proc.graph.pool ?? '';
   const blob = [proc.title, proc.description, proc.client, proc.process, proc.id, pool]
     .join(' ')
     .toLowerCase();

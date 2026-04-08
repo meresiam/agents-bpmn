@@ -22,6 +22,9 @@ export const diagramInline = {
   marker: ZINC[800],
   labelFill: ZINC[800],
   labelBg: ZINC[50],
+  /** Rótulos de ramo de gateway (Sim / Não / Yes / No) — fundo vermelho opaco para não “misturar” com as linhas */
+  gatewayLabelFill: '#ffffff',
+  gatewayLabelBg: '#dc2626',
   dot: ZINC[400],
   minimapNode: ZINC[200],
 } as const;
