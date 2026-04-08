@@ -50,6 +50,10 @@ function StartEndNodeComponent({ data, selected, id }: NodeProps<BpmnNodeData>) 
             className="!w-1.5 !h-1.5 !bg-white !border-[1.5px] !border-zinc-800"
           />
         )}
+        {/* Invisible handles for cross-pool and backward edge routing */}
+        <Handle type="target" position={Position.Top} id="top" className="!w-[1px] !h-[1px] !opacity-0 !min-w-0 !min-h-0" />
+        <Handle type="source" position={Position.Top} id="top-out" className="!w-[1px] !h-[1px] !opacity-0 !min-w-0 !min-h-0" />
+        <Handle type="source" position={Position.Bottom} id="bottom" className="!w-[1px] !h-[1px] !opacity-0 !min-w-0 !min-h-0" />
 
         <svg viewBox="0 0 36 36" width={size} height={size} className="absolute inset-0 text-zinc-800">
           <circle
