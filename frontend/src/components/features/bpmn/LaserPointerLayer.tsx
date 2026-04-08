@@ -15,9 +15,7 @@ type Props = {
   containerRef: React.RefObject<HTMLElement | null>;
 };
 
-const TRAIL_MAX_AGE_MS = 900;
-/** Quanto maior, mais “preguiçoso” o ponto segue o mouse (0–1 por frame, ~60fps). */
-const SMOOTH = 0.28;
+const TRAIL_MAX_AGE_MS = 600;
 
 function smoothstep(t: number): number {
   const x = Math.max(0, Math.min(1, t));
@@ -26,11 +24,11 @@ function smoothstep(t: number): number {
 
 export function LaserPointerLayer({ containerRef }: Props) {
   const [active, setActive] = useState(false);
+  const [panMode, setPanMode] = useState(false);
   const activeRef = useRef(false);
   activeRef.current = active;
 
-  const targetRef = useRef({ x: 0, y: 0 });
-  const smoothRef = useRef({ x: 0, y: 0 });
+  const posRef = useRef({ x: 0, y: 0 });
   const trailRef = useRef<TrailPoint[]>([]);
   const lastTrailRef = useRef({ x: 0, y: 0 });
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -69,25 +67,24 @@ export function LaserPointerLayer({ containerRef }: Props) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
 
-    const tgt = targetRef.current;
-    const sm = smoothRef.current;
-    sm.x += (tgt.x - sm.x) * SMOOTH;
-    sm.y += (tgt.y - sm.y) * SMOOTH;
-
+    const { x, y } = posRef.current;
     const now = performance.now();
+
+    // Trail management
     trailRef.current = trailRef.current.filter((p) => now - p.t < TRAIL_MAX_AGE_MS);
     const trail = trailRef.current;
 
     if (draggingRef.current) {
       const last = lastTrailRef.current;
-      const dx = sm.x - last.x;
-      const dy = sm.y - last.y;
-      if (dx * dx + dy * dy > 0.2) {
-        trailRef.current.push({ x: sm.x, y: sm.y, t: now });
-        lastTrailRef.current = { x: sm.x, y: sm.y };
+      const dx = x - last.x;
+      const dy = y - last.y;
+      if (dx * dx + dy * dy > 1) {
+        trail.push({ x, y, t: now });
+        lastTrailRef.current = { x, y };
       }
     }
 
+    // Draw trail
     if (trail.length >= 2) {
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
@@ -96,10 +93,10 @@ export function LaserPointerLayer({ containerRef }: Props) {
         const p1 = trail[i];
         const age = now - p1.t;
         const u = smoothstep(1 - age / TRAIL_MAX_AGE_MS);
-        ctx.strokeStyle = `rgba(255, 118, 116, ${u * 0.4})`;
-        ctx.lineWidth = 1.1 + u * 2;
+        ctx.strokeStyle = `rgba(255, 118, 116, ${u * 0.45})`;
+        ctx.lineWidth = 1.2 + u * 2.5;
         ctx.shadowColor = `rgba(255, 150, 140, ${u * 0.3})`;
-        ctx.shadowBlur = 5 + u * 5;
+        ctx.shadowBlur = 4 + u * 4;
         ctx.beginPath();
         ctx.moveTo(p0.x, p0.y);
         ctx.lineTo(p1.x, p1.y);
@@ -108,20 +105,21 @@ export function LaserPointerLayer({ containerRef }: Props) {
       ctx.shadowBlur = 0;
     }
 
-    const { x, y } = sm;
-    const grd = ctx.createRadialGradient(x, y, 0, x, y, 20);
-    grd.addColorStop(0, 'rgba(255, 255, 255, 0.92)');
-    grd.addColorStop(0.14, 'rgba(255, 145, 140, 0.88)');
-    grd.addColorStop(0.38, 'rgba(255, 70, 65, 0.35)');
+    // Draw laser dot — directly at mouse position (no smoothing)
+    const grd = ctx.createRadialGradient(x, y, 0, x, y, 18);
+    grd.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+    grd.addColorStop(0.12, 'rgba(255, 145, 140, 0.9)');
+    grd.addColorStop(0.35, 'rgba(255, 70, 65, 0.4)');
     grd.addColorStop(1, 'rgba(255, 40, 35, 0)');
     ctx.fillStyle = grd;
     ctx.beginPath();
-    ctx.arc(x, y, 20, 0, Math.PI * 2);
+    ctx.arc(x, y, 18, 0, Math.PI * 2);
     ctx.fill();
 
+    // Center dot
     ctx.fillStyle = 'rgba(255, 248, 248, 1)';
     ctx.beginPath();
-    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.arc(x, y, 2.5, 0, Math.PI * 2);
     ctx.fill();
   }, [containerRef]);
 
@@ -132,7 +130,7 @@ export function LaserPointerLayer({ containerRef }: Props) {
   }, [drawFrame]);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
+    const onKeyDown = (e: KeyboardEvent) => {
       if (isTypingTarget(document.activeElement)) return;
       if (e.key === 'k' || e.key === 'K') {
         if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -140,10 +138,22 @@ export function LaserPointerLayer({ containerRef }: Props) {
         setActive((a) => !a);
       } else if (e.key === 'Escape') {
         setActive(false);
+      } else if (e.key === ' ' && activeRef.current) {
+        e.preventDefault();
+        setPanMode(true);
       }
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === ' ') {
+        setPanMode(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+    };
   }, []);
 
   useEffect(() => {
@@ -158,21 +168,19 @@ export function LaserPointerLayer({ containerRef }: Props) {
     if (el) {
       const cx = el.clientWidth / 2;
       const cy = el.clientHeight / 2;
-      targetRef.current = { x: cx, y: cy };
-      smoothRef.current = { x: cx, y: cy };
+      posRef.current = { x: cx, y: cy };
     }
 
     const onMove = (e: MouseEvent) => {
-      const p = clientToLocal(e.clientX, e.clientY);
-      targetRef.current = p;
+      posRef.current = clientToLocal(e.clientX, e.clientY);
     };
 
     const onDown = (e: MouseEvent) => {
       if (e.button !== 0) return;
       draggingRef.current = true;
-      const s = smoothRef.current;
-      lastTrailRef.current = { x: s.x, y: s.y };
-      trailRef.current.push({ x: s.x, y: s.y, t: performance.now() });
+      const { x, y } = posRef.current;
+      lastTrailRef.current = { x, y };
+      trailRef.current.push({ x, y, t: performance.now() });
     };
 
     const endDrag = () => {
@@ -202,15 +210,16 @@ export function LaserPointerLayer({ containerRef }: Props) {
       <canvas
         ref={canvasRef}
         className="pointer-events-none absolute inset-0 z-[199]"
+        style={{ opacity: panMode ? 0.3 : 1 }}
         aria-hidden
       />
       <div
-        className="absolute inset-0 z-[200] cursor-none touch-none"
-        style={{ pointerEvents: 'auto' }}
+        className={`absolute inset-0 z-[200] touch-none ${panMode ? 'cursor-grab' : 'cursor-none'}`}
+        style={{ pointerEvents: panMode ? 'none' : 'auto' }}
         aria-hidden
       />
       <div className="pointer-events-none absolute bottom-3 left-1/2 z-[201] -translate-x-1/2 rounded-full bg-black/70 px-3 py-1.5 text-[11px] font-medium text-white/95 shadow-lg backdrop-blur-sm">
-        Laser — K ou Esc para sair
+        {panMode ? 'Arraste para mover — solte Espaço para voltar ao laser' : 'Laser — Espaço para arrastar · K ou Esc para sair'}
       </div>
     </>
   );
