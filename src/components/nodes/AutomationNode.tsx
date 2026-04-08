@@ -8,6 +8,7 @@ import { BpmnTaskMarker } from './BpmnTaskMarker';
 /** Tarefa automatizada — BPMN 2.0 como Service Task por padrão */
 function AutomationNodeComponent({ data, selected }: NodeProps<BpmnNodeData>) {
   const taskKind = data.bpmn?.task ?? 'serviceTask';
+  const showMarker = Boolean(taskKind && taskKind !== 'task');
 
   return (
     <div className="relative">
@@ -19,7 +20,8 @@ function AutomationNodeComponent({ data, selected }: NodeProps<BpmnNodeData>) {
 
       <div
         className={`
-          relative px-4 pt-4 pb-3 rounded-bpmn min-w-[132px] max-w-[200px]
+          relative rounded-bpmn min-w-[132px] max-w-[200px] pb-3 pt-3.5
+          ${showMarker ? 'pl-7 pr-3.5' : 'px-4'}
           text-center text-[12px] leading-snug font-medium text-zinc-900
           bg-white border border-zinc-800/85 shadow-sm
           transition-[box-shadow,border-color] duration-200
