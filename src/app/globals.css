@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --diagram-dot: theme('colors.zinc.400');
+    --diagram-surface: theme('colors.zinc.100');
+    --diagram-ring-selected: rgb(63 63 70 / 0.35);
+    --diagram-radius-node: theme('borderRadius.bpmn');
+  }
+}
+
+html,
+body,
+#__next {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* React Flow — canvas e chrome */
+.react-flow__background circle {
+  fill: var(--diagram-dot);
+  opacity: 0.35;
+}
+
+.react-flow__node {
+  cursor: grab;
+}
+
+.react-flow__node:active {
+  cursor: grabbing;
+}
+
+.react-flow__node-bpmnPool {
+  cursor: default;
+}
+
+.react-flow__edge-path {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.react-flow__controls {
+  border: 1px solid theme('colors.zinc.200') !important;
+  border-radius: theme('borderRadius.bpmn') !important;
+  box-shadow: theme('boxShadow.sm') !important;
+  overflow: hidden;
+}
+
+.react-flow__controls button {
+  border-color: theme('colors.zinc.100') !important;
+  background: theme('colors.white') !important;
+}
+
+.react-flow__controls button:hover {
+  background: theme('colors.zinc.50') !important;
+}
+
+.react-flow__controls button svg {
+  fill: theme('colors.zinc.800') !important;
+}
+
+.react-flow__minimap {
+  border: 1px solid theme('colors.zinc.200') !important;
+  border-radius: theme('borderRadius.bpmn') !important;
+  box-shadow: theme('boxShadow.sm') !important;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: theme('colors.zinc.300');
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: theme('colors.zinc.400');
+}

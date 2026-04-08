@@ -1,0 +1,47 @@
+'use client';
+
+import { memo } from 'react';
+import { Handle, Position, NodeProps } from 'reactflow';
+import { BpmnNodeData } from '@/lib/types';
+import { BpmnTaskMarker } from './BpmnTaskMarker';
+
+/** Tarefa automatizada — BPMN 2.0 como Service Task por padrão */
+function AutomationNodeComponent({ data, selected }: NodeProps<BpmnNodeData>) {
+  const taskKind = data.bpmn?.task ?? 'serviceTask';
+
+  return (
+    <div className="relative">
+      <Handle
+        type="target"
+        position={Position.Left}
+        className="!w-2 !h-2 !bg-white !border-[1.5px] !border-zinc-800"
+      />
+
+      <div
+        className={`
+          relative px-4 pt-4 pb-3 rounded-bpmn min-w-[132px] max-w-[200px]
+          text-center text-[12px] leading-snug font-medium text-zinc-900
+          bg-white border border-zinc-800/85 shadow-sm
+          transition-[box-shadow,border-color] duration-200
+          ${selected ? 'border-zinc-900 shadow-md ring-1 ring-zinc-500/20' : 'hover:border-zinc-800 hover:shadow-md'}
+        `}
+      >
+        <BpmnTaskMarker kind={taskKind} />
+        {(data.lane ?? data.phase) && (
+          <div className="text-[9px] uppercase tracking-[0.06em] text-zinc-500 mb-1 font-semibold">
+            {data.lane ?? data.phase}
+          </div>
+        )}
+        <div className="text-zinc-900">{data.label}</div>
+      </div>
+
+      <Handle
+        type="source"
+        position={Position.Right}
+        className="!w-2 !h-2 !bg-white !border-[1.5px] !border-zinc-800"
+      />
+    </div>
+  );
+}
+
+export const AutomationNode = memo(AutomationNodeComponent);
