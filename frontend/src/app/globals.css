@@ -1,13 +1,40 @@
+@import url('https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --diagram-dot: theme('colors.zinc.400');
-    --diagram-surface: theme('colors.zinc.100');
-    --diagram-ring-selected: rgb(63 63 70 / 0.35);
+    --font-sans: 'Satoshi', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+    /* Light mode (default — também aplicado quando data-theme não está setado) */
+    --surface: #FAFAF8;
+    --surface-elevated: #FFFFFF;
+    --surface-hover: #E8E8E4;
+    --fg-primary: #0A0A0A;
+    --fg-secondary: #555555;
+    --fg-tertiary: #777777;
+    --border-default: #E8E8E4;
+
+    --diagram-dot: #999999;
+    --diagram-surface: #F0F0EC;
+    --diagram-ring-selected: rgba(141, 128, 236, 0.35);
     --diagram-radius-node: theme('borderRadius.bpmn');
+  }
+
+  :root[data-theme='dark'] {
+    --surface: #0A0A0A;
+    --surface-elevated: #1E1E1E;
+    --surface-hover: #2A2A2A;
+    --fg-primary: #FAFAF8;
+    --fg-secondary: #999999;
+    --fg-tertiary: #777777;
+    --border-default: #2A2A2A;
+
+    --diagram-dot: #555555;
+    --diagram-surface: #141414;
+    --diagram-ring-selected: rgba(141, 128, 236, 0.55);
   }
 }
 
@@ -18,7 +45,7 @@ body,
 }
 
 body {
-  font-family: var(--font-sans), system-ui, sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -55,27 +82,28 @@ body {
 }
 
 .react-flow__controls {
-  border: 1px solid theme('colors.zinc.200') !important;
+  border: 1px solid var(--border-default) !important;
   border-radius: theme('borderRadius.bpmn') !important;
   box-shadow: theme('boxShadow.sm') !important;
   overflow: hidden;
 }
 
 .react-flow__controls button {
-  border-color: theme('colors.zinc.100') !important;
-  background: theme('colors.white') !important;
+  border-color: var(--border-default) !important;
+  background: var(--surface-elevated) !important;
+  color: var(--fg-primary) !important;
 }
 
 .react-flow__controls button:hover {
-  background: theme('colors.zinc.50') !important;
+  background: var(--surface-hover) !important;
 }
 
 .react-flow__controls button svg {
-  fill: theme('colors.zinc.800') !important;
+  fill: var(--fg-primary) !important;
 }
 
 .react-flow__minimap {
-  border: 1px solid theme('colors.zinc.200') !important;
+  border: 1px solid var(--border-default) !important;
   border-radius: theme('borderRadius.bpmn') !important;
   box-shadow: theme('boxShadow.sm') !important;
 }
@@ -98,10 +126,10 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: theme('colors.zinc.300');
+  background: var(--border-default);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: theme('colors.zinc.400');
+  background: var(--fg-tertiary);
 }

@@ -152,20 +152,20 @@ export default function ProcessGraphEditor({ initialJson }: { initialJson?: stri
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <div className="flex items-center justify-between px-4 py-2.5 bg-white/90 backdrop-blur-sm border-b border-zinc-200 flex-shrink-0 shadow-sm">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-surface-elevated/90 backdrop-blur-sm border-b border-border-app flex-shrink-0 shadow-sm">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-zinc-900 tracking-tight">Editor — Bravy Graph (JSON)</span>
+          <span className="text-sm font-semibold text-fg-primary tracking-tight">Editor — AILA Graph (JSON)</span>
         </div>
 
-        <div className="flex items-center gap-0.5 bg-zinc-100 rounded-bpmn p-0.5 border border-zinc-200">
+        <div className="flex items-center gap-0.5 bg-surface-hover rounded-aila p-0.5 border border-border-app">
           {(['code', 'split', 'preview'] as const).map((v) => (
             <button
               key={v}
               onClick={() => setView(v)}
               className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
                 view === v
-                  ? 'bg-white text-zinc-900 shadow-sm border border-zinc-200'
-                  : 'text-zinc-500 hover:text-zinc-800'
+                  ? 'bg-surface-elevated text-fg-primary shadow-sm border border-border-app'
+                  : 'text-fg-secondary hover:text-fg-primary'
               }`}
             >
               {v === 'code' && <Code2 size={12} className="inline mr-1" />}
@@ -178,14 +178,14 @@ export default function ProcessGraphEditor({ initialJson }: { initialJson?: stri
         <div className="flex items-center gap-2">
           <button
             onClick={handleCopy}
-            className="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-900"
+            className="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-fg-secondary hover:text-fg-primary"
           >
-            {copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
+            {copied ? <Check size={12} className="text-aila-success" /> : <Copy size={12} />}
             {copied ? 'Copiado' : 'Copiar'}
           </button>
           <button
             onClick={handleRun}
-            className="flex items-center gap-1.5 px-4 py-1.5 bg-zinc-900 text-white text-xs font-semibold rounded-bpmn hover:bg-zinc-800 transition-colors shadow-sm"
+            className="flex items-center gap-1.5 px-4 py-1.5 bg-aila-black dark:bg-aila-cream text-aila-cream dark:text-aila-black text-xs font-semibold rounded-aila hover:opacity-90 transition-opacity shadow-sm"
           >
             <Play size={12} />
             Renderizar

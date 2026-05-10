@@ -2,8 +2,9 @@
 
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Workflow } from 'lucide-react';
 import { useAuth } from '@/contexts/auth.context';
+import { AilaLogo } from '@/components/brand/AilaLogo';
+import { ThemeToggle } from '@/components/layout/ThemeToggle';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -28,29 +29,33 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-100 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-surface flex items-center justify-center px-4 relative">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-sm">
-        <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-10 h-10 bg-zinc-900 rounded-bpmn flex items-center justify-center shadow-sm">
-            <Workflow size={20} className="text-white" />
-          </div>
-          <span className="font-bold text-xl text-zinc-900 tracking-tight">Bravy BPMN</span>
+        <div className="flex items-center justify-center mb-8">
+          <AilaLogo size={44} wordmarkSuffix="BPMN" />
         </div>
 
         <form
           onSubmit={handleSubmit}
-          className="bg-white border border-zinc-200 rounded-bpmn p-6 shadow-sm"
+          className="bg-surface-elevated border border-border-app rounded-aila p-6 shadow-sm"
         >
-          <h1 className="text-lg font-semibold text-zinc-900 mb-1">Entrar</h1>
-          <p className="text-sm text-zinc-500 mb-6">Acesse seus fluxogramas de processo.</p>
+          <h1 className="font-display text-2xl font-semibold text-fg-primary mb-1 tracking-tight">
+            Entrar
+          </h1>
+          <p className="text-sm text-fg-secondary mb-6">
+            Acesse seus fluxogramas de processo.
+          </p>
 
           {error && (
-            <div className="mb-4 px-3 py-2 bg-red-50 border border-red-200 rounded-bpmn text-sm text-red-700">
+            <div className="mb-4 px-3 py-2 bg-aila-error/10 border border-aila-error/30 rounded-aila text-sm text-aila-error">
               {error}
             </div>
           )}
 
-          <label htmlFor="email" className="block text-sm font-medium text-zinc-700 mb-1.5">
+          <label htmlFor="email" className="block text-sm font-medium text-fg-primary mb-1.5">
             E-mail
           </label>
           <input
@@ -60,11 +65,11 @@ export default function LoginPage() {
             onChange={(e) => setEmail(e.target.value)}
             required
             autoComplete="email"
-            className="w-full px-3 py-2.5 text-sm border border-zinc-200 rounded-bpmn bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-300 mb-4"
+            className="w-full px-3 py-2.5 text-sm border border-border-app rounded-aila bg-surface-elevated text-fg-primary placeholder:text-fg-tertiary focus:outline-none focus:ring-2 focus:ring-aila-violet/30 focus:border-aila-violet/40 mb-4"
             placeholder="voce@empresa.com.br"
           />
 
-          <label htmlFor="password" className="block text-sm font-medium text-zinc-700 mb-1.5">
+          <label htmlFor="password" className="block text-sm font-medium text-fg-primary mb-1.5">
             Senha
           </label>
           <input
@@ -75,18 +80,22 @@ export default function LoginPage() {
             required
             autoComplete="current-password"
             minLength={6}
-            className="w-full px-3 py-2.5 text-sm border border-zinc-200 rounded-bpmn bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-300 mb-6"
+            className="w-full px-3 py-2.5 text-sm border border-border-app rounded-aila bg-surface-elevated text-fg-primary placeholder:text-fg-tertiary focus:outline-none focus:ring-2 focus:ring-aila-violet/30 focus:border-aila-violet/40 mb-6"
             placeholder="••••••••"
           />
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 bg-zinc-900 text-white text-sm font-semibold rounded-bpmn hover:bg-zinc-800 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-2.5 bg-aila-black dark:bg-aila-cream text-aila-cream dark:text-aila-black text-sm font-semibold rounded-aila hover:opacity-90 transition-opacity shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Entrando...' : 'Entrar'}
           </button>
         </form>
+
+        <p className="text-center text-xs text-fg-tertiary mt-6">
+          Sua empresa, AI Driven.
+        </p>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@
 import { useParams } from 'next/navigation';
 import { useMemo, useRef, useState, useEffect } from 'react';
 import { Workflow } from 'lucide-react';
+import { AilaLogo } from '@/components/brand/AilaLogo';
 import ReactFlow, {
   Background,
   Controls,
@@ -131,19 +132,21 @@ export default function PublicProcessView() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-100">
-        <p className="text-sm text-zinc-500">Carregando...</p>
+      <div className="min-h-screen flex items-center justify-center bg-surface">
+        <p className="text-sm text-fg-secondary">Carregando...</p>
       </div>
     );
   }
 
   if (error || !proc) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-100">
+      <div className="min-h-screen flex items-center justify-center bg-surface">
         <div className="text-center">
-          <Workflow size={48} className="mx-auto mb-4 text-zinc-300" />
-          <h1 className="text-xl font-bold text-zinc-800 mb-2">Fluxo nao encontrado</h1>
-          <p className="text-sm text-zinc-500">Este link pode estar expirado ou incorreto.</p>
+          <Workflow size={48} className="mx-auto mb-4 text-fg-tertiary" />
+          <h1 className="font-display text-2xl font-semibold text-fg-primary mb-2 tracking-tight">
+            Fluxo nao encontrado
+          </h1>
+          <p className="text-sm text-fg-secondary">Este link pode estar expirado ou incorreto.</p>
         </div>
       </div>
     );
@@ -151,19 +154,19 @@ export default function PublicProcessView() {
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <header className="bg-white/90 backdrop-blur-md border-b border-zinc-200 px-6 py-3 flex items-center justify-between flex-shrink-0 shadow-sm">
+      <header className="bg-surface-elevated/90 backdrop-blur-md border-b border-border-app px-6 py-3 flex items-center justify-between flex-shrink-0 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-zinc-900 rounded-bpmn flex items-center justify-center shadow-sm">
-            <Workflow size={16} className="text-white" />
-          </div>
+          <AilaLogo size={32} showWordmark={false} />
           <div>
-            <h1 className="text-sm font-semibold text-zinc-900 tracking-tight">{proc.title}</h1>
+            <h1 className="text-sm font-semibold text-fg-primary tracking-tight">{proc.title}</h1>
             {proc.description && (
-              <p className="text-[11px] text-zinc-500 max-w-md truncate">{proc.description}</p>
+              <p className="text-[11px] text-fg-secondary max-w-md truncate">{proc.description}</p>
             )}
           </div>
         </div>
-        <span className="text-[10px] text-zinc-400 font-medium">Bravy BPMN</span>
+        <span className="text-[10px] text-fg-tertiary font-semibold tracking-[0.08em] uppercase">
+          AILA BPMN
+        </span>
       </header>
 
       <div style={{ flex: 1 }}>

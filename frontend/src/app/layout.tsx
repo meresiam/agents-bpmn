@@ -1,11 +1,13 @@
 import type { Metadata } from 'next';
-import { Inter, JetBrains_Mono } from 'next/font/google';
+import { Cormorant_Garamond, JetBrains_Mono } from 'next/font/google';
 import { Providers } from '@/components/layout/Providers';
+import { ThemeBootstrap } from '@/components/layout/ThemeBootstrap';
 import './globals.css';
 
-const sans = Inter({
+const display = Cormorant_Garamond({
   subsets: ['latin'],
-  variable: '--font-sans',
+  variable: '--font-display',
+  weight: ['400', '500', '600', '700'],
   display: 'swap',
 });
 
@@ -17,8 +19,8 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Bravy BPMN — Ferramenta interna',
-  description: 'Visualizador BPMN 2.0 interno Bravy (JSON Bravy Graph).',
+  title: 'AILA BPMN — Mapeamento de processos',
+  description: 'AILA BPMN — visualizador e mapeador de processos BPMN 2.0 da AILA.',
 };
 
 export default function RootLayout({
@@ -27,8 +29,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR" className={`${sans.variable} ${mono.variable}`}>
-      <body className="bg-zinc-100 text-zinc-900 antialiased font-sans">
+    <html lang="pt-BR" className={`${display.variable} ${mono.variable}`} suppressHydrationWarning>
+      <head>
+        <ThemeBootstrap />
+      </head>
+      <body className="bg-surface text-fg-primary antialiased font-sans">
         <Providers>{children}</Providers>
       </body>
     </html>

@@ -20,6 +20,8 @@ import {
   TenantSummary,
   ProcessCategory,
 } from '@/services/process.service';
+import { AilaLogo } from '@/components/brand/AilaLogo';
+import { ThemeToggle } from '@/components/layout/ThemeToggle';
 
 const CATEGORY_LABELS: Record<ProcessCategory, string> = {
   COMERCIAL: 'Comercial',
@@ -60,8 +62,10 @@ function TenantFoldersView({
 }) {
   return (
     <div>
-      <h1 className="text-xl font-bold text-zinc-900 tracking-tight mb-1">Clientes</h1>
-      <p className="text-sm text-zinc-500 mb-6">
+      <h1 className="font-display text-4xl font-semibold text-fg-primary tracking-tight mb-1">
+        Clientes
+      </h1>
+      <p className="text-sm text-fg-secondary mb-6">
         Selecione um cliente para ver seus fluxogramas.
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -70,21 +74,24 @@ function TenantFoldersView({
             key={t.tenantId}
             type="button"
             onClick={() => onSelectTenant(t.tenantId)}
-            className="group text-left border border-zinc-200 bg-white rounded-bpmn p-5 hover:shadow-md hover:border-zinc-300 transition-all duration-200"
+            className="group text-left border border-border-app bg-surface-elevated rounded-aila p-5 hover:shadow-md hover:border-fg-tertiary transition-all duration-200"
           >
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 bg-zinc-100 rounded-bpmn flex items-center justify-center group-hover:bg-zinc-200 transition-colors">
-                <FolderOpen size={20} className="text-zinc-500" />
+              <div className="w-10 h-10 bg-surface-hover rounded-aila flex items-center justify-center group-hover:bg-aila-graphite-100 dark:group-hover:bg-aila-graphite-700 transition-colors">
+                <FolderOpen size={20} className="text-fg-secondary" />
               </div>
               <div className="flex-1 min-w-0">
-                <h2 className="font-semibold text-zinc-900 tracking-tight uppercase">
+                <h2 className="font-sans font-bold text-fg-primary tracking-tight uppercase">
                   {t.tenantId}
                 </h2>
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-fg-secondary">
                   {t.processCount} {t.processCount === 1 ? 'fluxo' : 'fluxos'}
                 </p>
               </div>
-              <ArrowRight size={16} className="text-zinc-300 group-hover:text-zinc-500 transition-colors shrink-0" />
+              <ArrowRight
+                size={16}
+                className="text-fg-tertiary group-hover:text-fg-secondary transition-colors shrink-0"
+              />
             </div>
           </button>
         ))}
@@ -129,23 +136,23 @@ function ProcessListView({
           <button
             type="button"
             onClick={onBack}
-            className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-900 mb-3 transition-colors"
+            className="flex items-center gap-1.5 text-xs font-medium text-fg-secondary hover:text-fg-primary mb-3 transition-colors"
           >
             <ArrowLeft size={14} />
             Voltar aos clientes
           </button>
         )}
-        <h1 className="text-xl font-bold text-zinc-900 tracking-tight mb-1">
+        <h1 className="font-display text-4xl font-semibold text-fg-primary tracking-tight mb-1">
           {tenantLabel ? (
             <>
               Fluxogramas{' '}
-              <span className="text-zinc-400 font-normal">/ {tenantLabel.toUpperCase()}</span>
+              <span className="text-fg-tertiary font-normal italic">/ {tenantLabel.toUpperCase()}</span>
             </>
           ) : (
             'Fluxogramas'
           )}
         </h1>
-        <p className="text-sm text-zinc-500 mb-4">
+        <p className="text-sm text-fg-secondary mb-4">
           Busque por nome ou trecho da descricao.
         </p>
 
@@ -153,7 +160,7 @@ function ProcessListView({
           <div className="relative flex-1">
             <Search
               size={18}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-tertiary pointer-events-none"
               aria-hidden
             />
             <input
@@ -162,14 +169,14 @@ function ProcessListView({
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar fluxogramas..."
               autoComplete="off"
-              className="w-full pl-10 pr-3 py-2.5 text-sm border border-zinc-200 rounded-bpmn bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-300 shadow-sm"
+              className="w-full pl-10 pr-3 py-2.5 text-sm border border-border-app rounded-aila bg-surface-elevated text-fg-primary placeholder:text-fg-tertiary focus:outline-none focus:ring-2 focus:ring-aila-violet/30 focus:border-aila-violet/40 shadow-sm"
             />
           </div>
           {categories.length > 1 && (
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="px-3 py-2.5 text-sm border border-zinc-200 rounded-bpmn bg-white text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-300 shadow-sm"
+              className="px-3 py-2.5 text-sm border border-border-app rounded-aila bg-surface-elevated text-fg-primary focus:outline-none focus:ring-2 focus:ring-aila-violet/30 focus:border-aila-violet/40 shadow-sm"
             >
               <option value="">Todas categorias</option>
               {categories.map((c) => (
@@ -182,7 +189,7 @@ function ProcessListView({
         </div>
 
         {(search.trim() || categoryFilter) && (
-          <p className="text-xs text-zinc-500 mt-2">
+          <p className="text-xs text-fg-secondary mt-2">
             {filtered.length === 0
               ? 'Nenhum resultado'
               : `${filtered.length} de ${processes.length}`}
@@ -191,10 +198,10 @@ function ProcessListView({
       </div>
 
       {filtered.length === 0 ? (
-        <div className="border border-dashed border-zinc-200 rounded-bpmn bg-white/60 px-6 py-14 text-center">
-          <Workflow size={36} className="mx-auto text-zinc-300 mb-3" aria-hidden />
-          <p className="text-sm font-medium text-zinc-700">Nenhum fluxograma encontrado</p>
-          <p className="text-xs text-zinc-500 mt-1">Ajuste o termo de busca ou limpe o filtro.</p>
+        <div className="border border-dashed border-border-app rounded-aila bg-surface-elevated/60 px-6 py-14 text-center">
+          <Workflow size={36} className="mx-auto text-fg-tertiary mb-3" aria-hidden />
+          <p className="text-sm font-medium text-fg-primary">Nenhum fluxograma encontrado</p>
+          <p className="text-xs text-fg-secondary mt-1">Ajuste o termo de busca ou limpe o filtro.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -202,25 +209,27 @@ function ProcessListView({
             <Link
               key={proc.id}
               href={`/bpmn/${proc.id}`}
-              className="group block border border-zinc-200 bg-white rounded-bpmn p-5 hover:shadow-md hover:border-zinc-300 transition-all duration-200"
+              className="group block border border-border-app bg-surface-elevated rounded-aila p-5 hover:shadow-md hover:border-fg-tertiary transition-all duration-200"
             >
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-[0.08em]">
+                  <span className="text-[11px] font-semibold text-fg-secondary uppercase tracking-[0.08em]">
                     {proc.slug}
                   </span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-500 font-medium">
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-hover text-fg-secondary font-medium">
                     {CATEGORY_LABELS[proc.category] ?? proc.category}
                   </span>
                 </div>
                 <ArrowRight
                   size={14}
-                  className="text-zinc-300 group-hover:text-zinc-500 transition-colors"
+                  className="text-fg-tertiary group-hover:text-fg-secondary transition-colors"
                 />
               </div>
-              <h2 className="font-semibold text-zinc-900 mb-1 tracking-tight">{proc.title}</h2>
-              <p className="text-xs text-zinc-500 leading-relaxed">{proc.description}</p>
-              <p className="text-[10px] text-zinc-400 mt-3 font-medium">
+              <h2 className="font-sans font-bold text-fg-primary mb-1 tracking-tight">
+                {proc.title}
+              </h2>
+              <p className="text-xs text-fg-secondary leading-relaxed">{proc.description}</p>
+              <p className="text-[10px] text-fg-tertiary mt-3 font-medium">
                 Atualizado em {new Date(proc.updatedAt).toLocaleDateString('pt-BR')}
               </p>
             </Link>
@@ -283,8 +292,8 @@ export default function HomePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-zinc-100 flex items-center justify-center">
-        <p className="text-sm text-zinc-500">Carregando...</p>
+      <div className="min-h-screen bg-surface flex items-center justify-center">
+        <p className="text-sm text-fg-secondary">Carregando...</p>
       </div>
     );
   }
@@ -294,11 +303,11 @@ export default function HomePage() {
   if (showEditor) {
     return (
       <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-        <div className="flex items-center justify-between px-4 py-2.5 bg-white/90 backdrop-blur-sm border-b border-zinc-200">
+        <div className="flex items-center justify-between px-4 py-2.5 bg-surface-elevated/90 backdrop-blur-sm border-b border-border-app">
           <button
             type="button"
             onClick={() => setShowEditor(false)}
-            className="text-xs font-medium text-zinc-500 hover:text-zinc-900"
+            className="text-xs font-medium text-fg-secondary hover:text-fg-primary"
           >
             &larr; Voltar
           </button>
@@ -311,32 +320,27 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-100">
-      <header className="border-b border-zinc-200 bg-white/85 backdrop-blur-md sticky top-0 z-50 shadow-sm">
+    <div className="min-h-screen bg-surface">
+      <header className="border-b border-border-app bg-surface-elevated/85 backdrop-blur-md sticky top-0 z-50 shadow-sm">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 bg-zinc-900 rounded-bpmn flex items-center justify-center shadow-sm shrink-0">
-              <Workflow size={18} className="text-white" />
-            </div>
-            <span className="font-bold text-lg text-zinc-900 tracking-tight truncate">
-              Bravy BPMN
-            </span>
-          </div>
-          <div className="flex items-center gap-3 shrink-0">
-            <span className="text-xs text-zinc-500 hidden sm:block">{user?.name}</span>
+          <AilaLogo size={36} wordmarkSuffix="BPMN" className="min-w-0 truncate" />
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-xs text-fg-secondary hidden sm:block">{user?.name}</span>
             <button
               type="button"
               onClick={() => setShowEditor(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-zinc-900 text-white text-sm font-semibold rounded-bpmn hover:bg-zinc-800 transition-colors shadow-sm"
+              className="flex items-center gap-2 px-4 py-2.5 bg-aila-black dark:bg-aila-cream text-aila-cream dark:text-aila-black text-sm font-semibold rounded-aila hover:opacity-90 transition-opacity shadow-sm"
             >
               <Code2 size={16} />
               Editor
             </button>
+            <ThemeToggle />
             <button
               type="button"
               onClick={logout}
-              className="flex items-center gap-1.5 px-3 py-2.5 text-sm text-zinc-500 hover:text-zinc-900 transition-colors"
+              className="flex items-center justify-center h-9 w-9 text-fg-secondary hover:text-fg-primary hover:bg-surface-hover rounded-aila transition-colors"
               title="Sair"
+              aria-label="Sair"
             >
               <LogOut size={16} />
             </button>
@@ -346,8 +350,8 @@ export default function HomePage() {
 
       <main className="max-w-6xl mx-auto px-6 py-10 pb-20">
         {loadingData ? (
-          <div className="border border-dashed border-zinc-200 rounded-bpmn bg-white/60 px-6 py-14 text-center">
-            <p className="text-sm text-zinc-500">Carregando...</p>
+          <div className="border border-dashed border-border-app rounded-aila bg-surface-elevated/60 px-6 py-14 text-center">
+            <p className="text-sm text-fg-secondary">Carregando...</p>
           </div>
         ) : isSuperAdmin && !selectedTenant ? (
           <TenantFoldersView
