@@ -44,10 +44,34 @@ body,
   height: 100%;
 }
 
+html {
+  /* Allow ReactFlow gestures without iOS double-tap zoom hijacking the canvas. */
+  touch-action: manipulation;
+}
+
 body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Prevent horizontal scrollbar from long titles or wide pools spilling past viewport. */
+  overflow-x: hidden;
+}
+
+/* Mobile-first: hide MiniMap on small screens to free canvas space. */
+@media (max-width: 640px) {
+  .react-flow__minimap {
+    display: none !important;
+  }
+
+  /* Compact ReactFlow controls — tighter padding, slightly bigger touch target. */
+  .react-flow__controls {
+    bottom: 0.5rem !important;
+    left: 0.5rem !important;
+  }
+  .react-flow__controls button {
+    width: 28px !important;
+    height: 28px !important;
+  }
 }
 
 /* React Flow — canvas e chrome */

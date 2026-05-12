@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Cormorant_Garamond, JetBrains_Mono } from 'next/font/google';
 import { Providers } from '@/components/layout/Providers';
 import { ThemeBootstrap } from '@/components/layout/ThemeBootstrap';
@@ -21,6 +21,18 @@ const mono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: 'AILA BPMN — Mapeamento de processos',
   description: 'AILA BPMN — visualizador e mapeador de processos BPMN 2.0 da AILA.',
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  viewportFit: 'cover',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#FAFAF8' },
+    { media: '(prefers-color-scheme: dark)', color: '#0A0A0A' },
+  ],
 };
 
 export default function RootLayout({

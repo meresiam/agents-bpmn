@@ -83,14 +83,16 @@ function FlowCanvas({
         />
 
         <Panel position="top-left">
-          <div className="flex flex-col gap-2 items-start max-w-md">
-            <div className="bg-white/95 backdrop-blur-sm border border-zinc-200 rounded-bpmn px-4 py-2.5 shadow-md w-full">
+          <div className="flex flex-col gap-2 items-start w-[calc(100vw-7rem)] sm:w-auto sm:max-w-md">
+            <div className="bg-white/95 backdrop-blur-sm border border-zinc-200 rounded-bpmn px-3 py-2 sm:px-4 sm:py-2.5 shadow-md w-full">
               {pool && (
-                <p className="text-[10px] text-zinc-800 leading-snug border-l-[3px] border-zinc-600 pl-2.5 mb-1">
+                <p className="text-[10px] text-zinc-800 leading-snug border-l-[3px] border-zinc-600 pl-2.5 mb-1 line-clamp-2">
                   Pool: {pool}
                 </p>
               )}
-              <h2 className="text-sm font-semibold text-zinc-900 tracking-tight">{title}</h2>
+              <h2 className="text-xs sm:text-sm font-semibold text-zinc-900 tracking-tight line-clamp-2">
+                {title}
+              </h2>
             </div>
             <BpmnLegend align="left" />
           </div>
@@ -153,18 +155,22 @@ export default function PublicProcessView() {
   }
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <header className="bg-surface-elevated/90 backdrop-blur-md border-b border-border-app px-6 py-3 flex items-center justify-between flex-shrink-0 shadow-sm">
-        <div className="flex items-center gap-3">
-          <AilaLogo size={32} showWordmark={false} />
-          <div>
-            <h1 className="text-sm font-semibold text-fg-primary tracking-tight">{proc.title}</h1>
+    <div className="flex flex-col" style={{ height: '100dvh' }}>
+      <header className="bg-surface-elevated/90 backdrop-blur-md border-b border-border-app px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-3 flex-shrink-0 shadow-sm">
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+          <AilaLogo size={28} showWordmark={false} className="shrink-0" />
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xs sm:text-sm font-semibold text-fg-primary tracking-tight truncate">
+              {proc.title}
+            </h1>
             {proc.description && (
-              <p className="text-[11px] text-fg-secondary max-w-md truncate">{proc.description}</p>
+              <p className="hidden sm:block text-[11px] text-fg-secondary max-w-md truncate">
+                {proc.description}
+              </p>
             )}
           </div>
         </div>
-        <span className="text-[10px] text-fg-tertiary font-semibold tracking-[0.08em] uppercase">
+        <span className="hidden sm:inline text-[10px] text-fg-tertiary font-semibold tracking-[0.08em] uppercase shrink-0">
           AILA BPMN
         </span>
       </header>

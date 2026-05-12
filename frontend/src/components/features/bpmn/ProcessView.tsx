@@ -115,15 +115,15 @@ function FlowCanvasWithOverlays({
         <MiniMap pannable zoomable nodeColor={diagramInline.minimapNode} maskColor="rgb(244 244 245 / 0.65)" className="!bg-white/90" />
 
         <Panel position="top-left">
-          <div className="flex flex-col gap-2 items-start max-w-md">
-            <div className="bg-white/95 backdrop-blur-sm border border-zinc-200 rounded-bpmn px-4 py-2.5 shadow-md w-full">
-              <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-[0.12em] block">{slug}</span>
+          <div className="flex flex-col gap-2 items-start w-[calc(100vw-7rem)] sm:w-auto sm:max-w-md">
+            <div className="bg-white/95 backdrop-blur-sm border border-zinc-200 rounded-bpmn px-3 py-2 sm:px-4 sm:py-2.5 shadow-md w-full">
+              <span className="text-[9px] sm:text-[10px] font-semibold text-zinc-500 uppercase tracking-[0.08em] sm:tracking-[0.12em] block truncate">{slug}</span>
               {pool && (
-                <p className="text-[10px] text-zinc-800 mt-1 leading-snug border-l-[3px] border-zinc-600 pl-2.5 mb-1">
+                <p className="text-[10px] text-zinc-800 mt-1 leading-snug border-l-[3px] border-zinc-600 pl-2.5 mb-1 line-clamp-2">
                   Pool: {pool}
                 </p>
               )}
-              <h2 className="text-sm font-semibold text-zinc-900 tracking-tight">{title}</h2>
+              <h2 className="text-xs sm:text-sm font-semibold text-zinc-900 tracking-tight line-clamp-2">{title}</h2>
             </div>
             <BpmnLegend align="left" />
           </div>
@@ -399,8 +399,14 @@ export default function ProcessView() {
 
   if (fullscreen) {
     return (
-      <div style={{ width: '100vw', height: '100vh' }}>
-        <div className="absolute top-4 left-4 z-20">
+      <div style={{ width: '100vw', height: '100dvh' }}>
+        <div
+          className="absolute z-20"
+          style={{
+            top: 'max(env(safe-area-inset-top, 0px), 1rem)',
+            left: 'max(env(safe-area-inset-left, 0px), 1rem)',
+          }}
+        >
           <button onClick={() => setFullscreen(false)} className="flex items-center gap-1.5 px-3 py-2 bg-white border border-zinc-200 rounded-bpmn text-xs font-medium text-zinc-800 hover:bg-zinc-100 transition-all shadow-sm">
             <Minimize2 size={12} /> Sair
           </button>
@@ -420,58 +426,92 @@ export default function ProcessView() {
   }
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div className="flex flex-col" style={{ height: '100dvh' }}>
       {/* Header */}
-      <header className="bg-white/90 backdrop-blur-md border-b border-zinc-200 px-6 py-3 flex items-center justify-between flex-shrink-0 shadow-sm">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="text-zinc-400 hover:text-zinc-700 transition-colors">
+      <header className="bg-white/90 backdrop-blur-md border-b border-zinc-200 px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-2 flex-shrink-0 shadow-sm">
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
+          <Link
+            href="/"
+            className="text-zinc-400 hover:text-zinc-700 transition-colors shrink-0 inline-flex h-9 w-9 sm:h-auto sm:w-auto items-center justify-center -ml-1.5 sm:ml-0"
+            aria-label="Voltar"
+          >
             <ArrowLeft size={18} />
           </Link>
-          <div>
-            <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-[0.08em]">{proc.slug}</span>
-            <h1 className="text-sm font-semibold text-zinc-900 tracking-tight">{proc.title}</h1>
+          <div className="min-w-0 flex-1">
+            <span className="hidden sm:block text-[11px] font-semibold text-zinc-500 uppercase tracking-[0.08em] truncate">{proc.slug}</span>
+            <h1 className="text-xs sm:text-sm font-semibold text-zinc-900 tracking-tight truncate">{proc.title}</h1>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button onClick={handleShare} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-bpmn text-xs font-semibold border transition-all ${shareCopied ? 'bg-green-50 text-green-700 border-green-200' : 'text-zinc-500 border-zinc-200 hover:bg-zinc-100'}`}>
-            {shareCopied ? <><Check size={12} /> Link copiado!</> : <><Share2 size={12} /> Compartilhar</>}
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          <button
+            onClick={handleShare}
+            className={`inline-flex items-center justify-center gap-1.5 h-9 w-9 sm:h-auto sm:w-auto sm:px-3 sm:py-1.5 rounded-bpmn text-xs font-semibold border transition-all ${shareCopied ? 'bg-green-50 text-green-700 border-green-200' : 'text-zinc-500 border-zinc-200 hover:bg-zinc-100'}`}
+            title="Compartilhar"
+            aria-label="Compartilhar"
+          >
+            {shareCopied ? (
+              <>
+                <Check size={14} className="sm:hidden" />
+                <Check size={12} className="hidden sm:inline" />
+                <span className="hidden sm:inline">Link copiado!</span>
+              </>
+            ) : (
+              <>
+                <Share2 size={14} className="sm:hidden" />
+                <Share2 size={12} className="hidden sm:inline" />
+                <span className="hidden sm:inline">Compartilhar</span>
+              </>
+            )}
           </button>
           <button
             onClick={() => setCanvasMode((prev) => prev === 'comment' ? 'default' : 'comment')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-bpmn text-xs font-semibold border transition-all ${
+            className={`relative inline-flex items-center justify-center gap-1.5 h-9 w-9 sm:h-auto sm:w-auto sm:px-3 sm:py-1.5 rounded-bpmn text-xs font-semibold border transition-all ${
               canvasMode === 'comment' ? 'bg-zinc-900 text-white border-zinc-900' : 'text-zinc-500 border-zinc-200 hover:bg-zinc-100'
             }`}
-            title="Atalho: C"
+            title="Comentários (C)"
+            aria-label="Comentários"
           >
-            <MessageCircle size={12} />
+            <MessageCircle size={14} className="sm:hidden" />
+            <MessageCircle size={12} className="hidden sm:inline" />
             {unresolvedCount > 0 && (
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${canvasMode === 'comment' ? 'bg-white text-zinc-900' : 'bg-zinc-900 text-white'}`}>{unresolvedCount}</span>
+              <span className={`absolute sm:static -top-1 -right-1 sm:top-auto sm:right-auto text-[9px] sm:text-[10px] min-w-[16px] h-4 px-1 sm:px-1.5 sm:py-0.5 rounded-full font-bold inline-flex items-center justify-center ${canvasMode === 'comment' ? 'bg-white text-zinc-900' : 'bg-zinc-900 text-white'}`}>{unresolvedCount}</span>
             )}
           </button>
           <button
             onClick={() => setCanvasMode((prev) => prev === 'note' ? 'default' : 'note')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-bpmn text-xs font-semibold border transition-all ${
+            className={`inline-flex items-center justify-center gap-1.5 h-9 w-9 sm:h-auto sm:w-auto sm:px-3 sm:py-1.5 rounded-bpmn text-xs font-semibold border transition-all ${
               canvasMode === 'note' ? 'bg-yellow-400 text-yellow-900 border-yellow-500' : 'text-zinc-500 border-zinc-200 hover:bg-zinc-100'
             }`}
-            title="Atalho: N"
+            title="Nota (N)"
+            aria-label="Nota"
           >
-            <StickyNote size={12} />
+            <StickyNote size={14} className="sm:hidden" />
+            <StickyNote size={12} className="hidden sm:inline" />
           </button>
           <button
             onClick={() => setShowComments(!showComments)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-bpmn text-xs font-semibold border transition-all ${showComments ? 'bg-zinc-100 text-zinc-900 border-zinc-300 shadow-sm' : 'text-zinc-500 border-zinc-200 hover:bg-zinc-100'}`}
+            className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-bpmn text-xs font-semibold border transition-all ${showComments ? 'bg-zinc-100 text-zinc-900 border-zinc-300 shadow-sm' : 'text-zinc-500 border-zinc-200 hover:bg-zinc-100'}`}
+            title="Painel de comentários"
           >
             Drawer
           </button>
           <button
             onClick={() => setShowCode(!showCode)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-bpmn text-xs font-semibold border transition-all ${showCode ? 'bg-zinc-100 text-zinc-900 border-zinc-300 shadow-sm' : 'text-zinc-500 border-zinc-200 hover:bg-zinc-100'}`}
+            className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-bpmn text-xs font-semibold border transition-all ${showCode ? 'bg-zinc-100 text-zinc-900 border-zinc-300 shadow-sm' : 'text-zinc-500 border-zinc-200 hover:bg-zinc-100'}`}
+            title="Código JSON"
           >
             <Code2 size={12} /> Codigo
           </button>
-          <button onClick={() => setFullscreen(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-zinc-500 border border-zinc-200 hover:bg-zinc-100 rounded-bpmn text-xs font-semibold transition-all">
-            <Maximize2 size={12} /> Fullscreen
+          <button
+            onClick={() => setFullscreen(true)}
+            className="inline-flex items-center justify-center gap-1.5 h-9 w-9 sm:h-auto sm:w-auto sm:px-3 sm:py-1.5 text-zinc-500 border border-zinc-200 hover:bg-zinc-100 rounded-bpmn text-xs font-semibold transition-all"
+            title="Tela cheia"
+            aria-label="Tela cheia"
+          >
+            <Maximize2 size={14} className="sm:hidden" />
+            <Maximize2 size={12} className="hidden sm:inline" />
+            <span className="hidden sm:inline">Fullscreen</span>
           </button>
         </div>
       </header>

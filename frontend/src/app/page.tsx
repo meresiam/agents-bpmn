@@ -62,13 +62,13 @@ function TenantFoldersView({
 }) {
   return (
     <div>
-      <h1 className="font-display text-4xl font-semibold text-fg-primary tracking-tight mb-1">
+      <h1 className="font-display text-3xl sm:text-4xl font-semibold text-fg-primary tracking-tight mb-1">
         Clientes
       </h1>
-      <p className="text-sm text-fg-secondary mb-6">
+      <p className="text-sm text-fg-secondary mb-5 sm:mb-6">
         Selecione um cliente para ver seus fluxogramas.
       </p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {tenants.map((t) => (
           <button
             key={t.tenantId}
@@ -142,7 +142,7 @@ function ProcessListView({
             Voltar aos clientes
           </button>
         )}
-        <h1 className="font-display text-4xl font-semibold text-fg-primary tracking-tight mb-1">
+        <h1 className="font-display text-3xl sm:text-4xl font-semibold text-fg-primary tracking-tight mb-1 break-words">
           {tenantLabel ? (
             <>
               Fluxogramas{' '}
@@ -198,13 +198,13 @@ function ProcessListView({
       </div>
 
       {filtered.length === 0 ? (
-        <div className="border border-dashed border-border-app rounded-aila bg-surface-elevated/60 px-6 py-14 text-center">
+        <div className="border border-dashed border-border-app rounded-aila bg-surface-elevated/60 px-4 sm:px-6 py-10 sm:py-14 text-center">
           <Workflow size={36} className="mx-auto text-fg-tertiary mb-3" aria-hidden />
           <p className="text-sm font-medium text-fg-primary">Nenhum fluxograma encontrado</p>
           <p className="text-xs text-fg-secondary mt-1">Ajuste o termo de busca ou limpe o filtro.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {filtered.map((proc) => (
             <Link
               key={proc.id}
@@ -322,17 +322,19 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-surface">
       <header className="border-b border-border-app bg-surface-elevated/85 backdrop-blur-md sticky top-0 z-50 shadow-sm">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
-          <AilaLogo size={36} wordmarkSuffix="BPMN" className="min-w-0 truncate" />
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-xs text-fg-secondary hidden sm:block">{user?.name}</span>
+        <div className="max-w-6xl mx-auto px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-2 sm:gap-4">
+          <AilaLogo size={32} wordmarkSuffix="BPMN" className="min-w-0 truncate" />
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            <span className="text-xs text-fg-secondary hidden md:block">{user?.name}</span>
             <button
               type="button"
               onClick={() => setShowEditor(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-aila-black dark:bg-aila-cream text-aila-cream dark:text-aila-black text-sm font-semibold rounded-aila hover:opacity-90 transition-opacity shadow-sm"
+              className="inline-flex items-center justify-center gap-2 h-9 w-9 sm:h-auto sm:w-auto sm:px-4 sm:py-2.5 bg-aila-black dark:bg-aila-cream text-aila-cream dark:text-aila-black text-sm font-semibold rounded-aila hover:opacity-90 transition-opacity shadow-sm"
+              title="Editor"
+              aria-label="Editor"
             >
               <Code2 size={16} />
-              Editor
+              <span className="hidden sm:inline">Editor</span>
             </button>
             <ThemeToggle />
             <button
@@ -348,7 +350,7 @@ export default function HomePage() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-10 pb-20">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10 pb-16 sm:pb-20">
         {loadingData ? (
           <div className="border border-dashed border-border-app rounded-aila bg-surface-elevated/60 px-6 py-14 text-center">
             <p className="text-sm text-fg-secondary">Carregando...</p>

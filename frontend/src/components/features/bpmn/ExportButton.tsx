@@ -193,10 +193,12 @@ export function ExportButton({ flowRef, filename = 'fluxograma' }: ExportButtonP
       <button
         onClick={() => setOpen(!open)}
         disabled={loading}
-        className="bg-white border border-zinc-200 rounded-bpmn px-3 py-2 text-xs font-semibold text-zinc-800 hover:bg-zinc-100 hover:border-zinc-300 transition-all flex items-center gap-1.5 shadow-sm disabled:opacity-60"
+        title="Exportar"
+        aria-label="Exportar"
+        className="bg-white border border-zinc-200 rounded-bpmn h-9 w-9 sm:h-auto sm:w-auto sm:px-3 sm:py-2 text-xs font-semibold text-zinc-800 hover:bg-zinc-100 hover:border-zinc-300 transition-all inline-flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-60"
       >
         {loading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-        Exportar
+        <span className="hidden sm:inline">Exportar</span>
       </button>
 
       {open && (
