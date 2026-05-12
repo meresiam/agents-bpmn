@@ -1,6 +1,6 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, useId } from 'react';
 import { motion } from 'framer-motion';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { BpmnNodeData, BpmnGatewayKind } from '@/lib/types';
@@ -21,21 +21,40 @@ function DecisionNodeComponent({ data, selected }: NodeProps<BpmnNodeData>) {
         ? 'Parallel Gateway (AND)'
         : 'Inclusive Gateway (OR)';
 
+  const gradientId = `aila-decision-grad-${useId().replace(/:/g, '')}`;
+  const strokeColor = selected ? `url(#${gradientId})` : 'currentColor';
+  const strokeWidth = selected ? 2.5 : 1.5;
+
   return (
-    <motion.div className="relative flex flex-col items-center" title={gwTitle} {...nodeMotion}>
+    <motion.div
+      className="relative flex flex-col items-center"
+      title={gwTitle}
+      {...nodeMotion}
+      whileHover={{ scale: 1.05, transition: { duration: 0.15 } }}
+    >
       <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
         <Handle
           type="target"
           position={Position.Left}
-          className="!w-1.5 !h-1.5 !bg-white !border-[1.5px] !border-zinc-800"
+          className="!w-1.5 !h-1.5 !bg-[var(--surface-elevated)] !border-[1.5px] !border-[var(--fg-primary)]"
         />
 
-        <svg viewBox="0 0 48 48" width={size} height={size} className="absolute inset-0 text-zinc-800">
+        <svg viewBox="0 0 48 48" width={size} height={size} className="absolute inset-0 text-fg-primary overflow-visible">
+          <defs>
+            <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#34C4F9" />
+              <stop offset="25%" stopColor="#4CB3F6" />
+              <stop offset="50%" stopColor="#8D80EC" />
+              <stop offset="75%" stopColor="#CE4EE1" />
+              <stop offset="100%" stopColor="#E63DE0" />
+            </linearGradient>
+          </defs>
           <polygon
             points="24,2 46,24 24,46 2,24"
-            fill="white"
-            stroke="currentColor"
-            strokeWidth={selected ? 2.25 : 1.5}
+            fill="var(--surface-elevated)"
+            stroke={strokeColor}
+            strokeWidth={strokeWidth}
+            style={selected ? { filter: 'drop-shadow(0 0 6px rgba(141, 128, 236, 0.45))' } : undefined}
           />
           {gateway === 'exclusive' && (
             <>
@@ -57,7 +76,7 @@ function DecisionNodeComponent({ data, selected }: NodeProps<BpmnNodeData>) {
         <Handle
           type="source"
           position={Position.Right}
-          className="!w-1.5 !h-1.5 !bg-white !border-[1.5px] !border-zinc-800"
+          className="!w-1.5 !h-1.5 !bg-[var(--surface-elevated)] !border-[1.5px] !border-[var(--fg-primary)]"
         />
         {/* Invisible handles for edge routing (cross-pool, backward edges) */}
         <Handle type="source" position={Position.Bottom} id="bottom" className="!w-[1px] !h-[1px] !opacity-0 !min-w-0 !min-h-0" />
@@ -66,7 +85,7 @@ function DecisionNodeComponent({ data, selected }: NodeProps<BpmnNodeData>) {
       </div>
 
       {data.label ? (
-        <span className="mt-1 text-[10px] text-center text-zinc-800 font-medium leading-tight px-1 max-w-[130px]">
+        <span className="mt-1 text-[10px] text-center text-fg-primary font-medium leading-tight px-1 max-w-[130px]">
           {data.label}
         </span>
       ) : null}

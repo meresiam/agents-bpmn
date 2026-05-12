@@ -1,0 +1,56 @@
+{
+  "$schema": "./bpmn-vocab-canon-br.schema.json",
+  "version": "1.0.0",
+  "source": "Apostila ESESP/SEGER-ES — Curso BPM/BPMN, Davi Amorim Salgueiro, jul/2019 (186 págs)",
+  "extractedAt": "2026-05-09",
+  "purpose": "Vocabulário canônico PT-BR para agentes que geram processos BPMN no schema da Bravy. Use no system prompt + validador determinístico.",
+  "schemaTarget": {
+    "ProcessGraphJson": {
+      "fields": ["version", "layout", "pool", "lanes", "pools", "nodes", "edges"]
+    },
+    "ProcessGraphNodeJson.kind": ["activity", "decision", "startEnd", "automation", "group"],
+    "ProcessGraphNodeJson.bpmn.task": ["task", "userTask", "serviceTask", "scriptTask", "manualTask", "sendTask", "receiveTask"],
+    "ProcessGraphNodeJson.bpmn.gateway": ["exclusive", "parallel", "inclusive"],
+    "ProcessGraphNodeJson.bpmn.event": ["start", "end"]
+  },
+  "vocabulary": [
+    { "ptbr": "Piscina", "en": "Pool", "bpmnRole": "container/swimlane", "bravyMap": "graph.pool (legado) ou graph.pools[].pool" },
+    { "ptbr": "Raia", "en": "Lane", "bpmnRole": "sub-swimlane", "bravyMap": "graph.lanes[] ou graph.pools[].lanes[]" },
+    { "ptbr": "Atividade", "en": "Activity / Task", "bpmnRole": "flow object", "bravyMap": "kind: activity" },
+    { "ptbr": "Tarefa de Usuário", "en": "User Task", "bpmnRole": "activity subtype", "bravyMap": "kind: activity, bpmn.task: userTask" },
+    { "ptbr": "Tarefa Manual", "en": "Manual Task", "bpmnRole": "activity subtype", "bravyMap": "kind: activity, bpmn.task: manualTask" },
+    { "ptbr": "Tarefa de Serviço", "en": "Service Task", "bpmnRole": "activity subtype (automatizada)", "bravyMap": "kind: automation, bpmn.task: serviceTask" },
+    { "ptbr": "Tarefa de Script", "en": "Script Task", "bpmnRole": "activity subtype (automatizada)", "bravyMap": "kind: automation, bpmn.task: scriptTask" },
+    { "ptbr": "Tarefa de Envio de Mensagem", "en": "Send Task", "bpmnRole": "activity subtype", "bravyMap": "kind: activity, bpmn.task: sendTask" },
+    { "ptbr": "Tarefa de Recebimento de Mensagem", "en": "Receive Task", "bpmnRole": "activity subtype", "bravyMap": "kind: activity, bpmn.task: receiveTask" },
+    { "ptbr": "Tarefa Genérica", "en": "Task", "bpmnRole": "activity (sem subtipo)", "bravyMap": "kind: activity, bpmn.task: task" },
+    { "ptbr": "Evento de Início", "en": "Start Event", "bpmnRole": "event", "bravyMap": "kind: startEnd, bpmn.event: start" },
+    { "ptbr": "Evento de Fim", "en": "End Event", "bpmnRole": "event", "bravyMap": "kind: startEnd, bpmn.event: end" },
+    { "ptbr": "Gateway Exclusivo (XOR)", "en": "Exclusive Gateway", "bpmnRole": "gateway", "bravyMap": "kind: decision, bpmn.gateway: exclusive" },
+    { "ptbr": "Gateway Paralelo (AND)", "en": "Parallel Gateway", "bpmnRole": "gateway", "bravyMap": "kind: decision, bpmn.gateway: parallel" },
+    { "ptbr": "Gateway Inclusivo (OR)", "en": "Inclusive Gateway", "bpmnRole": "gateway", "bravyMap": "kind: decision, bpmn.gateway: inclusive" },
+    { "ptbr": "Grupo", "en": "Group", "bpmnRole": "artifact (visual)", "bravyMap": "kind: group" },
+    { "ptbr": "Fluxo de Sequência", "en": "Sequence Flow", "bpmnRole": "connector (linha sólida)", "bravyMap": "edge entre nodes do mesmo pool" },
+    { "ptbr": "Fluxo de Mensagem", "en": "Message Flow", "bpmnRole": "connector (linha tracejada, ENTRE pools)", "bravyMap": "edge ligando nodes com poolId distintos" },
+    { "ptbr": "Subprocesso", "en": "Subprocess", "bpmnRole": "compound activity", "bravyMap": "kind: activity (representação simplificada — Bravy ainda não tem marker dedicado)" },
+    { "ptbr": "Anotação", "en": "Text Annotation", "bpmnRole": "artifact", "bravyMap": "(usar StickyNote do canvas, fora do graph principal)" },
+    { "ptbr": "Dono do Processo", "en": "Process Owner", "bpmnRole": "metadata", "bravyMap": "(metadata externo do ProcessDefinition)" },
+    { "ptbr": "Cliente / Cidadão", "en": "Customer / Citizen", "bpmnRole": "ator externo", "bravyMap": "graph.pools[] separado (segunda piscina)" }
+  ],
+  "rulesPtBr": {
+    "atividades": "Verbo no INFINITIVO + objeto. Ex: 'Aprovar solicitação', 'Emitir contrato', 'Validar documentação'. Nunca verbo conjugado, nunca substantivo puro.",
+    "raias": "Nome de SETOR/ÁREA, não cargo nem nome de pessoa. Ex: 'Financeiro', 'Comercial', 'Jurídico', 'Operações'. Errado: 'João', 'Gerente Comercial'.",
+    "gateways": "Pergunta objetiva fechada (sim/não ou opções). Ex: 'Valor aprovado?', 'Documentação completa?', 'Cliente é PJ?'. Nunca ação. Um gateway é DIVERGENTE OU CONVERGENTE — não os dois.",
+    "fechamentoGateway": "Pontos de divergência DEVEM ser fechados pelo gateway correspondente do mesmo tipo (XOR fecha XOR, AND fecha AND).",
+    "eventoInicio": "Apenas UM evento de início por processo (regra forte).",
+    "eventoFim": "Múltiplos eventos de fim são permitidos e desejáveis quando há cenários distintos (sucesso, erro, cancelamento).",
+    "fluxoMensagem": "APENAS entre piscinas distintas (ex: órgão ↔ cidadão, empresa ↔ fornecedor). Jamais dentro da mesma piscina.",
+    "direcao": "Fluxo da esquerda pra direita (graph.layout: 'LR') ou de cima pra baixo (graph.layout: 'TB'). Fluxos não se cruzam.",
+    "anotacoes": "Use com moderação. Para detalhes complexos, agrupe atividades em subprocesso ao invés de anotar."
+  },
+  "vocabularioCorporativoBR": {
+    "verbosFrequentes": ["solicitar", "protocolar", "abrir chamado", "tramitar", "deferir", "indeferir", "homologar", "notificar", "encaminhar", "validar", "lançar no sistema", "gerar boleto", "emitir NF", "aprovar", "rejeitar", "arquivar"],
+    "atoresClienteFinal": ["cidadão", "cliente", "munícipe", "contribuinte", "paciente", "aluno", "lead", "prospect"],
+    "setoresComuns": ["RH", "Financeiro", "Comercial", "Jurídico", "Compras", "Operações", "TI", "Marketing", "Atendimento", "CS", "Diretoria"]
+  }
+}

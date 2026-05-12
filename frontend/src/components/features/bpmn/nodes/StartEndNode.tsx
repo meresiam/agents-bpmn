@@ -32,7 +32,7 @@ function StartEndNodeComponent({ data, selected, id }: NodeProps<BpmnNodeData>) 
     >
       {hasLabel && !isEnd && (
         <span
-          className="text-[11px] text-zinc-500 whitespace-nowrap mr-1.5 select-none"
+          className="text-[11px] text-fg-secondary whitespace-nowrap mr-1.5 select-none"
           style={{ lineHeight: `${size}px` }}
         >
           {data.label}
@@ -43,11 +43,27 @@ function StartEndNodeComponent({ data, selected, id }: NodeProps<BpmnNodeData>) 
         className="relative flex items-center justify-center flex-shrink-0"
         style={{ width: size, height: size }}
       >
+        {/* Pulse halo — só pro Start event, indica "início do fluxo" */}
+        {!isEnd && (
+          <>
+            <motion.span
+              className="pointer-events-none absolute inset-0 rounded-full border-2 border-aila-warning"
+              animate={{ scale: [1, 1.5], opacity: [0.55, 0] }}
+              transition={{ duration: 2.4, repeat: Infinity, ease: 'easeOut' }}
+            />
+            <motion.span
+              className="pointer-events-none absolute inset-0 rounded-full border border-aila-warning"
+              animate={{ scale: [1, 1.3], opacity: [0.35, 0] }}
+              transition={{ duration: 2.4, repeat: Infinity, ease: 'easeOut', delay: 0.6 }}
+            />
+          </>
+        )}
+
         {isEnd && (
           <Handle
             type="target"
             position={Position.Left}
-            className="!w-1.5 !h-1.5 !bg-white !border-[1.5px] !border-zinc-800"
+            className="!w-1.5 !h-1.5 !bg-[var(--surface-elevated)] !border-[1.5px] !border-[var(--fg-primary)]"
           />
         )}
         {/* Invisible handles for cross-pool and backward edge routing */}
@@ -55,12 +71,12 @@ function StartEndNodeComponent({ data, selected, id }: NodeProps<BpmnNodeData>) 
         <Handle type="source" position={Position.Top} id="top-out" className="!w-[1px] !h-[1px] !opacity-0 !min-w-0 !min-h-0" />
         <Handle type="source" position={Position.Bottom} id="bottom" className="!w-[1px] !h-[1px] !opacity-0 !min-w-0 !min-h-0" />
 
-        <svg viewBox="0 0 36 36" width={size} height={size} className="absolute inset-0 text-zinc-800">
+        <svg viewBox="0 0 36 36" width={size} height={size} className="absolute inset-0 text-fg-primary">
           <circle
             cx="18"
             cy="18"
             r={isEnd ? 14 : 15}
-            fill={isEnd ? '#fecaca' : '#fef9c3'}
+            fill={isEnd ? 'var(--aila-error-tint, #fecaca)' : 'var(--aila-warning-tint, #fef9c3)'}
             stroke="currentColor"
             strokeWidth={isEnd ? 3.25 : selected ? 2 : 1.5}
           />
@@ -70,14 +86,14 @@ function StartEndNodeComponent({ data, selected, id }: NodeProps<BpmnNodeData>) 
           <Handle
             type="source"
             position={Position.Right}
-            className="!w-1.5 !h-1.5 !bg-white !border-[1.5px] !border-zinc-800"
+            className="!w-1.5 !h-1.5 !bg-[var(--surface-elevated)] !border-[1.5px] !border-[var(--fg-primary)]"
           />
         )}
       </div>
 
       {hasLabel && isEnd && (
         <span
-          className="text-[11px] text-zinc-500 whitespace-nowrap ml-1.5 select-none"
+          className="text-[11px] text-fg-secondary whitespace-nowrap ml-1.5 select-none"
           style={{ lineHeight: `${size}px` }}
         >
           {data.label}

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
-import { Save, X, RefreshCw, AlertCircle } from 'lucide-react';
+import { Save, X, RefreshCw, AlertCircle, Sparkles, Paperclip } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { GeneratedGraph } from '@/services/chat.service';
 import type { ProcessCategory } from '@/services/process.service';
@@ -26,6 +26,11 @@ const CATEGORIES: ProcessCategory[] = [
   'TI',
   'OUTRO',
 ];
+
+const fieldMotion = {
+  hidden: { opacity: 0, y: 6 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] as const } },
+};
 
 interface GraphPreviewModalProps {
   result: GeneratedGraph;
@@ -62,29 +67,49 @@ export function GraphPreviewModal({
   const canSave = title.trim().length > 0 && slug.trim().length > 0 && !saving;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-stretch justify-center bg-black/50 backdrop-blur-sm p-4 sm:p-8">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.18 }}
+      className="fixed inset-0 z-50 flex items-stretch justify-center bg-black/60 backdrop-blur-md p-4 sm:p-8"
+    >
       <motion.div
-        initial={{ opacity: 0, scale: 0.97 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.18 }}
-        className="relative flex flex-col w-full max-w-6xl max-h-[calc(100vh-2rem)] bg-surface-elevated rounded-aila border border-border-app shadow-xl overflow-hidden"
+        initial={{ opacity: 0, scale: 0.96, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.22, ease: [0.25, 0.46, 0.45, 0.94] as const }}
+        className="relative flex flex-col w-full max-w-6xl max-h-[calc(100vh-2rem)] bg-surface-elevated rounded-aila border border-border-app shadow-2xl overflow-hidden"
       >
         {/* Header */}
-        <div className="flex items-center justify-between gap-4 px-4 sm:px-6 py-3 border-b border-border-app shrink-0">
-          <div className="flex-1 min-w-0">
-            <h2 className="font-display text-xl font-semibold text-fg-primary tracking-tight truncate">
-              Preview do fluxo
-            </h2>
-            <p className="text-[11px] text-fg-tertiary">
-              {nodeCount} nodes · {edgeCount} edges · cliente {result.tenantId.toUpperCase()} ·
-              gerado em {(result.llmMs / 1000).toFixed(1)}s
-            </p>
+        <div className="flex items-center justify-between gap-4 px-5 sm:px-7 py-4 border-b border-border-app shrink-0">
+          <div className="flex-1 min-w-0 flex items-center gap-3">
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-aila-violet/10 border border-aila-violet/30 shrink-0">
+              <Sparkles className="w-4 h-4 text-aila-violet" />
+            </span>
+            <div className="min-w-0">
+              <h2 className="font-display text-[22px] font-semibold text-fg-primary tracking-tight leading-tight truncate">
+                Preview do fluxo
+              </h2>
+              <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                <span className="inline-flex items-center gap-1 text-[10px] font-semibold tracking-[0.06em] uppercase px-2 py-0.5 rounded-full bg-surface-hover text-fg-secondary">
+                  {nodeCount} nodes
+                </span>
+                <span className="inline-flex items-center gap-1 text-[10px] font-semibold tracking-[0.06em] uppercase px-2 py-0.5 rounded-full bg-surface-hover text-fg-secondary">
+                  {edgeCount} edges
+                </span>
+                <span className="inline-flex items-center gap-1 text-[10px] font-semibold tracking-[0.06em] uppercase px-2 py-0.5 rounded-full bg-aila-violet/10 text-aila-violet">
+                  {result.tenantId.toUpperCase()}
+                </span>
+                <span className="text-[10px] text-fg-tertiary tracking-tight">
+                  · gerado em {(result.llmMs / 1000).toFixed(1)}s
+                </span>
+              </div>
+            </div>
           </div>
           <button
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="p-2 text-fg-tertiary hover:text-fg-primary hover:bg-surface-hover rounded-aila transition-colors disabled:opacity-40"
+            className="p-2 text-fg-tertiary hover:text-fg-primary hover:bg-surface-hover rounded-aila transition-colors disabled:opacity-40 shrink-0"
             aria-label="Fechar"
           >
             <X size={16} />
@@ -94,14 +119,19 @@ export function GraphPreviewModal({
         {/* Body: canvas + sidebar */}
         <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
           {/* Canvas */}
-          <div className="flex-1 min-h-[300px] lg:min-h-0 border-b lg:border-b-0 lg:border-r border-border-app bg-zinc-100 dark:bg-zinc-900">
+          <div className="flex-1 min-h-[300px] lg:min-h-0 border-b lg:border-b-0 lg:border-r border-border-app bg-[var(--diagram-surface)]">
             <GraphPreviewCanvas graph={result.graph} />
           </div>
 
           {/* Edit panel */}
-          <div className="lg:w-[320px] shrink-0 p-4 sm:p-5 overflow-y-auto bg-surface space-y-4">
-            <div>
-              <label className="block text-[11px] font-semibold tracking-[0.1em] uppercase text-fg-tertiary mb-1.5">
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={{ visible: { transition: { staggerChildren: 0.04, delayChildren: 0.1 } } }}
+            className="lg:w-[340px] shrink-0 p-5 sm:p-6 overflow-y-auto bg-surface space-y-4"
+          >
+            <motion.div variants={fieldMotion}>
+              <label className="block text-[10px] font-semibold tracking-[0.08em] uppercase text-fg-tertiary mb-1.5">
                 Título
               </label>
               <input
@@ -109,12 +139,12 @@ export function GraphPreviewModal({
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 disabled={saving}
-                className="w-full px-3 py-2 text-sm bg-surface-elevated border border-border-app rounded-aila text-fg-primary placeholder:text-fg-tertiary focus:outline-none focus:ring-1 focus:ring-aila-violet/40"
+                className="w-full px-3 py-2 text-sm bg-surface-elevated border border-border-app rounded-aila text-fg-primary placeholder:text-fg-tertiary focus:outline-none focus:ring-2 focus:ring-aila-violet/40 focus:border-aila-violet/40 transition-shadow"
               />
-            </div>
+            </motion.div>
 
-            <div>
-              <label className="block text-[11px] font-semibold tracking-[0.1em] uppercase text-fg-tertiary mb-1.5">
+            <motion.div variants={fieldMotion}>
+              <label className="block text-[10px] font-semibold tracking-[0.08em] uppercase text-fg-tertiary mb-1.5">
                 Slug (URL)
               </label>
               <input
@@ -129,19 +159,19 @@ export function GraphPreviewModal({
                   )
                 }
                 disabled={saving}
-                className="w-full px-3 py-2 text-sm font-mono bg-surface-elevated border border-border-app rounded-aila text-fg-primary placeholder:text-fg-tertiary focus:outline-none focus:ring-1 focus:ring-aila-violet/40"
+                className="w-full px-3 py-2 text-sm font-mono bg-surface-elevated border border-border-app rounded-aila text-fg-primary placeholder:text-fg-tertiary focus:outline-none focus:ring-2 focus:ring-aila-violet/40 focus:border-aila-violet/40 transition-shadow"
               />
-            </div>
+            </motion.div>
 
-            <div>
-              <label className="block text-[11px] font-semibold tracking-[0.1em] uppercase text-fg-tertiary mb-1.5">
+            <motion.div variants={fieldMotion}>
+              <label className="block text-[10px] font-semibold tracking-[0.08em] uppercase text-fg-tertiary mb-1.5">
                 Categoria
               </label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as ProcessCategory)}
                 disabled={saving}
-                className="w-full px-3 py-2 text-sm bg-surface-elevated border border-border-app rounded-aila text-fg-primary focus:outline-none focus:ring-1 focus:ring-aila-violet/40"
+                className="w-full px-3 py-2 text-sm bg-surface-elevated border border-border-app rounded-aila text-fg-primary focus:outline-none focus:ring-2 focus:ring-aila-violet/40 focus:border-aila-violet/40 transition-shadow"
               >
                 {CATEGORIES.map((c) => (
                   <option key={c} value={c}>
@@ -149,10 +179,10 @@ export function GraphPreviewModal({
                   </option>
                 ))}
               </select>
-            </div>
+            </motion.div>
 
-            <div>
-              <label className="block text-[11px] font-semibold tracking-[0.1em] uppercase text-fg-tertiary mb-1.5">
+            <motion.div variants={fieldMotion}>
+              <label className="block text-[10px] font-semibold tracking-[0.08em] uppercase text-fg-tertiary mb-1.5">
                 Descrição
               </label>
               <textarea
@@ -160,48 +190,66 @@ export function GraphPreviewModal({
                 onChange={(e) => setDescription(e.target.value)}
                 disabled={saving}
                 rows={3}
-                className="w-full px-3 py-2 text-sm bg-surface-elevated border border-border-app rounded-aila text-fg-primary placeholder:text-fg-tertiary focus:outline-none focus:ring-1 focus:ring-aila-violet/40 resize-none"
+                className="w-full px-3 py-2 text-sm bg-surface-elevated border border-border-app rounded-aila text-fg-primary placeholder:text-fg-tertiary focus:outline-none focus:ring-2 focus:ring-aila-violet/40 focus:border-aila-violet/40 resize-none transition-shadow"
               />
-            </div>
+            </motion.div>
 
             {result.attachments.length > 0 && (
-              <div>
-                <p className="text-[11px] font-semibold tracking-[0.1em] uppercase text-fg-tertiary mb-1.5">
+              <motion.div variants={fieldMotion}>
+                <p className="text-[10px] font-semibold tracking-[0.08em] uppercase text-fg-tertiary mb-1.5">
                   Anexos usados
                 </p>
-                <ul className="space-y-1">
+                <ul className="flex flex-wrap gap-1.5">
                   {result.attachments.map((a) => (
-                    <li key={a.name} className="text-xs text-fg-secondary truncate">
-                      · {a.name}
+                    <li
+                      key={a.name}
+                      className="inline-flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-full bg-surface-elevated text-fg-primary border border-border-app max-w-full"
+                    >
+                      <Paperclip size={10} className="text-fg-tertiary shrink-0" />
+                      <span className="truncate">{a.name}</span>
                       {a.truncated && (
-                        <span className="text-fg-tertiary ml-1">(truncado)</span>
+                        <span className="text-[9px] uppercase tracking-tight font-semibold text-aila-warning shrink-0">
+                          trunc
+                        </span>
                       )}
                     </li>
                   ))}
                 </ul>
-              </div>
+              </motion.div>
             )}
 
             {saveError && (
-              <div className="flex items-start gap-2 p-2.5 bg-aila-error/10 border border-aila-error/30 rounded-aila">
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-start gap-2 p-2.5 bg-aila-error/10 border border-aila-error/30 rounded-aila"
+              >
                 <AlertCircle className="w-4 h-4 text-aila-error shrink-0 mt-0.5" />
                 <p className="text-xs text-aila-error">{saveError}</p>
-              </div>
+              </motion.div>
             )}
-          </div>
+          </motion.div>
         </div>
 
         {/* Footer actions */}
-        <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3 border-t border-border-app shrink-0">
-          <button
+        <div className="flex items-center justify-between gap-3 px-5 sm:px-7 py-3.5 border-t border-border-app shrink-0 bg-surface-elevated">
+          <motion.button
             type="button"
             onClick={onRegenerate}
             disabled={saving}
-            className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-fg-secondary hover:text-fg-primary hover:bg-surface-hover rounded-aila transition-colors disabled:opacity-40"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="group flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-fg-secondary hover:text-fg-primary hover:bg-surface-hover rounded-aila transition-colors disabled:opacity-40"
           >
-            <RefreshCw size={13} />
+            <motion.span
+              animate={saving ? { rotate: 360 } : { rotate: 0 }}
+              transition={saving ? { duration: 1, repeat: Infinity, ease: 'linear' } : { duration: 0.3 }}
+              className="inline-flex"
+            >
+              <RefreshCw size={13} className="group-hover:rotate-[-45deg] transition-transform" />
+            </motion.span>
             Refazer
-          </button>
+          </motion.button>
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -211,23 +259,25 @@ export function GraphPreviewModal({
             >
               Cancelar
             </button>
-            <button
+            <motion.button
               type="button"
               onClick={() => onSave({ slug, title, description, category })}
               disabled={!canSave}
+              whileHover={canSave ? { y: -1 } : undefined}
+              whileTap={canSave ? { y: 0, scale: 0.98 } : undefined}
               className={cn(
-                'flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-aila transition-all',
+                'inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-aila transition-all',
                 canSave
-                  ? 'bg-aila-violet text-aila-cream shadow-sm hover:shadow-aila-glow'
+                  ? 'bg-aila-gradient text-aila-cream shadow-aila-glow hover:shadow-aila-glow'
                   : 'bg-surface-hover text-fg-tertiary cursor-not-allowed',
               )}
             >
               <Save size={14} />
               {saving ? 'Salvando…' : 'Salvar fluxo'}
-            </button>
+            </motion.button>
           </div>
         </div>
       </motion.div>
-    </div>
+    </motion.div>
   );
 }

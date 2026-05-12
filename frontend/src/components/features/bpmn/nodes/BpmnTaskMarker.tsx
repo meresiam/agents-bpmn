@@ -4,7 +4,7 @@ import { memo } from 'react';
 import { BpmnTaskKind } from '@/lib/types';
 
 const wrap =
-  'pointer-events-none absolute left-2.5 top-2.5 z-[1] flex h-[18px] w-[18px] items-center justify-center text-zinc-700';
+  'pointer-events-none absolute left-2.5 top-2.5 z-[1] flex h-[18px] w-[18px] items-center justify-center text-fg-secondary';
 
 /** Marcadores BPMN 2.0 no canto superior interno da tarefa */
 export const BpmnTaskMarker = memo(function BpmnTaskMarker({ kind }: { kind?: BpmnTaskKind }) {
@@ -55,7 +55,7 @@ export const BpmnTaskMarker = memo(function BpmnTaskMarker({ kind }: { kind?: Bp
               className="stroke-current"
               strokeWidth={1.2}
               strokeLinejoin="round"
-              fill="white"
+              fill="var(--surface-elevated)"
             />
           </svg>
         </div>

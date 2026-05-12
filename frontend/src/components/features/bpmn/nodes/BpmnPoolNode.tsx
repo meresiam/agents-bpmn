@@ -5,7 +5,7 @@ import { memo, useMemo } from "react";
 import { motion } from "framer-motion";
 import { NodeProps } from "reactflow";
 
-const BORDER = "border-zinc-300";
+const BORDER = "border-border-app";
 
 function BpmnPoolNodeComponent({ data }: NodeProps<BpmnPoolNodeData>) {
   const {
@@ -31,7 +31,7 @@ function BpmnPoolNodeComponent({ data }: NodeProps<BpmnPoolNodeData>) {
 
   return (
     <motion.div
-      className={`pointer-events-none select-none relative bg-white border-2 ${BORDER} rounded-xl shadow-md overflow-hidden`}
+      className={`pointer-events-none select-none relative bg-surface-elevated border-2 ${BORDER} rounded-xl shadow-md overflow-hidden`}
       style={{ width: poolWidth, height: poolHeight, boxSizing: "border-box" }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -41,7 +41,7 @@ function BpmnPoolNodeComponent({ data }: NodeProps<BpmnPoolNodeData>) {
       {lanes.map((_, i) => (
         <div
           key={`lane-bg-${i}`}
-          className={`absolute pointer-events-none ${i % 2 === 0 ? "bg-white" : "bg-zinc-50/80"}`}
+          className={`absolute pointer-events-none ${i % 2 === 0 ? "bg-surface-elevated" : "bg-surface-hover/40"}`}
           style={{
             left: 0,
             top: laneYOffsets[i],
@@ -65,11 +65,11 @@ function BpmnPoolNodeComponent({ data }: NodeProps<BpmnPoolNodeData>) {
 
       {/* Pool name column */}
       <div
-        className={`absolute top-0 bottom-0 border-r ${BORDER} flex items-center justify-center bg-zinc-100/90`}
+        className={`absolute top-0 bottom-0 border-r ${BORDER} flex items-center justify-center bg-surface-hover/80`}
         style={{ left: 0, width: poolNameCol }}
       >
         <span
-          className="text-[11px] font-semibold text-zinc-700 tracking-[0.04em] px-1 text-center"
+          className="text-[11px] font-semibold text-fg-secondary tracking-[0.04em] px-1 text-center"
           style={{
             writingMode: "vertical-rl",
             transform: "rotate(180deg)",
@@ -82,7 +82,7 @@ function BpmnPoolNodeComponent({ data }: NodeProps<BpmnPoolNodeData>) {
 
       {/* Lane label column */}
       <div
-        className={`absolute top-0 bottom-0 border-r ${BORDER} bg-zinc-100/90`}
+        className={`absolute top-0 bottom-0 border-r ${BORDER} bg-surface-hover/80`}
         style={{ left: poolNameCol, width: laneLabelCol }}
       >
         {lanes.map((laneName, i) => (
@@ -97,7 +97,7 @@ function BpmnPoolNodeComponent({ data }: NodeProps<BpmnPoolNodeData>) {
               width: laneLabelCol,
             }}
           >
-            <span className="text-[10px] font-semibold text-zinc-700 leading-snug tracking-tight">
+            <span className="text-[10px] font-semibold text-fg-secondary leading-snug tracking-tight">
               {laneName}
             </span>
           </div>

@@ -21,6 +21,10 @@
     --diagram-surface: #F0F0EC;
     --diagram-ring-selected: rgba(141, 128, 236, 0.35);
     --diagram-radius-node: theme('borderRadius.bpmn');
+
+    /* Tints semânticos pra Start/End event (BPMN). Pastel no light, dessaturado no dark. */
+    --aila-error-tint: #fecaca;
+    --aila-warning-tint: #fef9c3;
   }
 
   :root[data-theme='dark'] {
@@ -35,6 +39,9 @@
     --diagram-dot: #555555;
     --diagram-surface: #141414;
     --diagram-ring-selected: rgba(141, 128, 236, 0.55);
+
+    --aila-error-tint: #4a2222;
+    --aila-warning-tint: #3d3522;
   }
 }
 

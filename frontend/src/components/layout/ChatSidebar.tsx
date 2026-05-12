@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   ChevronDown,
@@ -11,6 +11,7 @@ import {
   Search,
   Workflow,
   Code2,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AilaLogo } from '@/components/brand/AilaLogo';
@@ -23,6 +24,9 @@ interface ChatSidebarProps {
   processesByTenant: Record<string, ProcessSummary[]>;
   loadingTenant: string | null;
   userName?: string;
+  /** Mobile drawer state. Desktop (lg+) ignora isso e mantém sempre visível. */
+  isOpen?: boolean;
+  onClose?: () => void;
   onSelectTenant: (tenantId: string) => void;
   onNewChat: () => void;
   onOpenEditor: () => void;
@@ -35,6 +39,8 @@ export function ChatSidebar({
   processesByTenant,
   loadingTenant,
   userName,
+  isOpen = false,
+  onClose,
   onSelectTenant,
   onNewChat,
   onOpenEditor,
@@ -62,17 +68,73 @@ export function ChatSidebar({
     }
   };
 
+  // Lock body scroll while drawer is open on mobile
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const lg = window.matchMedia('(min-width: 1024px)').matches;
+    if (lg) return;
+    document.body.style.overflow = isOpen ? 'hidden' : '';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
+  // Close drawer on Esc (mobile only)
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose?.();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isOpen, onClose]);
+
   return (
-    <aside className="flex flex-col h-screen w-[280px] shrink-0 bg-surface border-r border-border-app">
+    <>
+      {/* Mobile backdrop */}
+      <div
+        className={cn(
+          'fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity duration-200 lg:hidden',
+          isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none',
+        )}
+        aria-hidden
+        onClick={onClose}
+      />
+
+      <aside
+        className={cn(
+          'flex flex-col bg-surface border-r border-border-app',
+          // Mobile: drawer fixo deslizando do esquerdo
+          'fixed inset-y-0 left-0 z-50 h-[100dvh] w-[85vw] max-w-[320px] shadow-2xl',
+          'transition-transform duration-250 ease-out',
+          isOpen ? 'translate-x-0' : '-translate-x-full',
+          // Desktop: estatica, sem transform, sem shadow extra
+          'lg:static lg:translate-x-0 lg:w-[280px] lg:max-w-none lg:h-screen lg:shrink-0 lg:shadow-none lg:z-0',
+        )}
+        aria-label="Menu lateral de clientes e fluxos"
+      >
       {/* Header */}
       <div className="px-3 py-3 border-b border-border-app">
         <div className="flex items-center justify-between mb-3">
           <AilaLogo size={26} wordmarkSuffix="BPMN" />
-          <ThemeToggle />
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+            <button
+              type="button"
+              onClick={onClose}
+              className="lg:hidden p-1.5 text-fg-tertiary hover:text-fg-primary hover:bg-surface-hover rounded-aila transition-colors"
+              aria-label="Fechar menu"
+            >
+              <X size={16} />
+            </button>
+          </div>
         </div>
         <button
           type="button"
-          onClick={onNewChat}
+          onClick={() => {
+            onNewChat();
+            onClose?.();
+          }}
           className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-fg-primary bg-surface-elevated hover:bg-surface-hover border border-border-app rounded-aila transition-colors"
         >
           <PlusIcon size={15} />
@@ -119,6 +181,7 @@ export function ChatSidebar({
                   processes={processesByTenant[tenant.tenantId] ?? []}
                   onToggle={() => toggleTenant(tenant.tenantId)}
                   searchFilter={search.trim().toLowerCase()}
+                  onProcessClick={onClose}
                 />
               ))
             )}
@@ -127,6 +190,7 @@ export function ChatSidebar({
           <FlatProcessList
             processes={Object.values(processesByTenant).flat()}
             search={search.trim().toLowerCase()}
+            onProcessClick={onClose}
           />
         )}
       </div>
@@ -135,7 +199,10 @@ export function ChatSidebar({
       <div className="border-t border-border-app px-2 py-2 space-y-1">
         <button
           type="button"
-          onClick={onOpenEditor}
+          onClick={() => {
+            onOpenEditor();
+            onClose?.();
+          }}
           className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-fg-secondary hover:text-fg-primary hover:bg-surface-hover rounded-aila transition-colors"
         >
           <Code2 size={14} />
@@ -159,7 +226,8 @@ export function ChatSidebar({
           </button>
         </div>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }
 
@@ -170,6 +238,7 @@ function TenantNode({
   processes,
   onToggle,
   searchFilter,
+  onProcessClick,
 }: {
   tenant: TenantSummary;
   expanded: boolean;
@@ -177,6 +246,7 @@ function TenantNode({
   processes: ProcessSummary[];
   onToggle: () => void;
   searchFilter: string;
+  onProcessClick?: () => void;
 }) {
   const filtered = useMemo(() => {
     if (!searchFilter) return processes;
@@ -213,7 +283,9 @@ function TenantNode({
               {processes.length === 0 ? 'Sem fluxos.' : 'Nada bate com a busca.'}
             </p>
           ) : (
-            filtered.map((proc) => <ProcessLink key={proc.id} process={proc} />)
+            filtered.map((proc) => (
+              <ProcessLink key={proc.id} process={proc} onClick={onProcessClick} />
+            ))
           )}
         </div>
       )}
@@ -224,9 +296,11 @@ function TenantNode({
 function FlatProcessList({
   processes,
   search,
+  onProcessClick,
 }: {
   processes: ProcessSummary[];
   search: string;
+  onProcessClick?: () => void;
 }) {
   const filtered = useMemo(() => {
     if (!search) return processes;
@@ -247,16 +321,23 @@ function FlatProcessList({
         </span>
       </div>
       {filtered.map((proc) => (
-        <ProcessLink key={proc.id} process={proc} />
+        <ProcessLink key={proc.id} process={proc} onClick={onProcessClick} />
       ))}
     </>
   );
 }
 
-function ProcessLink({ process: proc }: { process: ProcessSummary }) {
+function ProcessLink({
+  process: proc,
+  onClick,
+}: {
+  process: ProcessSummary;
+  onClick?: () => void;
+}) {
   return (
     <Link
       href={`/bpmn/${proc.id}`}
+      onClick={onClick}
       className={cn(
         'group flex items-center gap-1.5 px-2 py-1.5 text-xs',
         'text-fg-secondary hover:text-fg-primary hover:bg-surface-hover',

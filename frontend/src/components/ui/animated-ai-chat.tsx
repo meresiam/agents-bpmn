@@ -116,6 +116,10 @@ interface AnimatedAIChatProps {
   tenantOptions?: TenantOption[];
   selectedTenantId?: string | null;
   onSelectTenant?: (tenantId: string) => void;
+  /** Texto streaming do LLM, mostrado no toast inferior enquanto isLoading=true. */
+  streamingText?: string;
+  /** Stats heuristicas extraidas do stream parcial. */
+  streamingStats?: { nodes: number; edges: number };
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -128,6 +132,8 @@ export function AnimatedAIChat({
   tenantOptions,
   selectedTenantId,
   onSelectTenant,
+  streamingText,
+  streamingStats,
 }: AnimatedAIChatProps) {
   const [value, setValue] = useState('');
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
@@ -278,18 +284,11 @@ export function AnimatedAIChat({
     (value.trim().length > 0 || attachments.length > 0) && !busy && !tenantMissing;
 
   return (
-    <div className="relative flex flex-col w-full items-center justify-center px-6 py-10 overflow-hidden">
-      {/* Ambient AILA glows */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-aila-violet/15 rounded-full mix-blend-normal blur-[128px] animate-pulse" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-aila-purple/10 rounded-full mix-blend-normal blur-[128px] animate-pulse [animation-delay:700ms]" />
-        <div className="absolute top-1/3 right-1/3 w-64 h-64 bg-aila-cyan/10 rounded-full mix-blend-normal blur-[96px] animate-pulse [animation-delay:1200ms]" />
-      </div>
-
+    <div className="relative flex flex-col w-full flex-1 lg:flex-none items-center justify-center px-4 py-6 sm:px-6 sm:py-10">
       {/* Main column */}
       <div className="w-full max-w-2xl mx-auto relative">
         <motion.div
-          className="relative z-10 space-y-10"
+          className="relative z-10 space-y-6 sm:space-y-10"
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: 'easeOut' }}
@@ -302,7 +301,7 @@ export function AnimatedAIChat({
               transition={{ delay: 0.15, duration: 0.45 }}
               className="inline-block"
             >
-              <h1 className="font-display text-3xl sm:text-4xl font-semibold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-fg-primary to-fg-secondary pb-1">
+              <h1 className="font-display text-2xl sm:text-4xl font-semibold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-fg-primary to-fg-secondary pb-1">
                 {title}
               </h1>
               <motion.div
@@ -313,7 +312,7 @@ export function AnimatedAIChat({
               />
             </motion.div>
             <motion.p
-              className="text-sm text-fg-tertiary"
+              className="text-xs sm:text-sm text-fg-tertiary px-4"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3 }}
@@ -532,43 +531,74 @@ export function AnimatedAIChat({
             </div>
           </motion.div>
 
-          {/* Quick action chips */}
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            {COMMAND_SUGGESTIONS.map((suggestion, index) => (
-              <motion.button
-                key={suggestion.prefix}
-                onClick={() => selectCommand(index)}
-                className="flex items-center gap-2 px-3 py-2 bg-surface-elevated/60 hover:bg-surface-elevated rounded-aila text-sm text-fg-secondary hover:text-fg-primary transition-all border border-border-app"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.08 }}
-              >
-                <span className="text-fg-tertiary">{suggestion.icon}</span>
-                <span className="font-medium">{suggestion.label}</span>
-              </motion.button>
-            ))}
+          {/* Quick action chips — scroll horizontal no mobile, wrap centrado no desktop */}
+          <div className="-mx-4 sm:mx-0 overflow-x-auto sm:overflow-visible">
+            <div className="flex sm:flex-wrap items-center justify-start sm:justify-center gap-2 px-4 sm:px-0 min-w-min">
+              {COMMAND_SUGGESTIONS.map((suggestion, index) => (
+                <motion.button
+                  key={suggestion.prefix}
+                  onClick={() => selectCommand(index)}
+                  className="shrink-0 flex items-center gap-2 px-3 py-2 bg-surface-elevated/60 hover:bg-surface-elevated rounded-aila text-xs sm:text-sm text-fg-secondary hover:text-fg-primary transition-all border border-border-app whitespace-nowrap"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.08 }}
+                >
+                  <span className="text-fg-tertiary">{suggestion.icon}</span>
+                  <span className="font-medium">{suggestion.label}</span>
+                </motion.button>
+              ))}
+            </div>
           </div>
         </motion.div>
       </div>
 
-      {/* Thinking toast */}
+      {/* Streaming preview toast */}
       <AnimatePresence>
         {busy && (
           <motion.div
-            className="fixed bottom-8 left-1/2 -translate-x-1/2 backdrop-blur-2xl bg-surface-elevated rounded-full px-4 py-2 shadow-md border border-border-app z-50"
+            className={cn(
+              'fixed bottom-4 sm:bottom-8 left-1/2 -translate-x-1/2 z-50 backdrop-blur-2xl bg-surface-elevated rounded-aila border border-border-app shadow-md overflow-hidden',
+              streamingText && streamingText.length > 0
+                ? 'w-[min(40rem,calc(100vw-1.5rem))]'
+                : 'px-4 py-2 rounded-full',
+            )}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
           >
-            <div className="flex items-center gap-3">
-              <div className="w-7 h-7 rounded-full bg-aila-violet/15 flex items-center justify-center">
-                <Workflow className="w-3.5 h-3.5 text-aila-violet" />
+            {streamingText && streamingText.length > 0 ? (
+              <div className="flex flex-col">
+                <div className="flex items-center justify-between gap-3 px-3 py-2 border-b border-border-app">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-aila-violet/15 flex items-center justify-center">
+                      <Workflow className="w-3 h-3 text-aila-violet" />
+                    </div>
+                    <span className="text-xs font-semibold text-fg-secondary">
+                      Gerando fluxo
+                    </span>
+                    <TypingDots />
+                  </div>
+                  {streamingStats && (streamingStats.nodes > 0 || streamingStats.edges > 0) && (
+                    <span className="text-[10px] font-mono text-fg-tertiary">
+                      {streamingStats.nodes} nodes · {streamingStats.edges} edges
+                    </span>
+                  )}
+                </div>
+                <pre className="px-3 py-2 text-[10px] leading-relaxed font-mono text-fg-tertiary max-h-32 overflow-y-auto whitespace-pre-wrap break-all">
+                  {streamingText.slice(-600)}
+                </pre>
               </div>
-              <div className="flex items-center gap-2 text-sm text-fg-secondary">
-                <span>Processando</span>
-                <TypingDots />
+            ) : (
+              <div className="flex items-center gap-3">
+                <div className="w-7 h-7 rounded-full bg-aila-violet/15 flex items-center justify-center">
+                  <Workflow className="w-3.5 h-3.5 text-aila-violet" />
+                </div>
+                <div className="flex items-center gap-2 text-sm text-fg-secondary">
+                  <span>Processando</span>
+                  <TypingDots />
+                </div>
               </div>
-            </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

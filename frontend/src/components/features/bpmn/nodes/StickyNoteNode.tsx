@@ -62,7 +62,7 @@ function StickyNoteNodeComponent({ data }: NodeProps<StickyNoteNodeData>) {
           type="button"
           onClick={(e) => { e.stopPropagation(); setShowColors(!showColors); }}
           onMouseDown={(e) => e.stopPropagation()}
-          className="w-4 h-4 bg-white border border-zinc-300 rounded-full flex items-center justify-center shadow-sm hover:bg-zinc-50 text-zinc-500 nodrag"
+          className="w-4 h-4 bg-surface-elevated border border-border-app rounded-full flex items-center justify-center shadow-sm hover:bg-surface-hover text-fg-secondary nodrag"
         >
           <Palette size={8} />
         </button>
@@ -71,7 +71,7 @@ function StickyNoteNodeComponent({ data }: NodeProps<StickyNoteNodeData>) {
           type="button"
           onClick={(e) => { e.stopPropagation(); data.onDelete(data.noteId); }}
           onMouseDown={(e) => e.stopPropagation()}
-          className="w-4 h-4 bg-white border border-zinc-300 rounded-full flex items-center justify-center shadow-sm hover:bg-red-50 hover:text-red-500 text-zinc-500 nodrag"
+          className="w-4 h-4 bg-surface-elevated border border-border-app rounded-full flex items-center justify-center shadow-sm hover:bg-aila-error/10 hover:text-aila-error text-fg-secondary nodrag"
         >
           <Trash2 size={8} />
         </button>
@@ -80,7 +80,7 @@ function StickyNoteNodeComponent({ data }: NodeProps<StickyNoteNodeData>) {
       {/* Color picker dropdown */}
       {showColors && (
         <div
-          className="absolute -top-8 right-0 flex items-center gap-1 bg-white border border-zinc-200 rounded-full px-1.5 py-1 shadow-lg z-20 nodrag"
+          className="absolute -top-8 right-0 flex items-center gap-1 bg-surface-elevated border border-border-app rounded-full px-1.5 py-1 shadow-lg z-20 nodrag"
           onClick={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}
         >
@@ -93,7 +93,7 @@ function StickyNoteNodeComponent({ data }: NodeProps<StickyNoteNodeData>) {
                 setShowColors(false);
               }}
               className={`w-4 h-4 rounded-full border-2 transition-transform ${
-                data.color === key ? 'scale-125 border-zinc-600' : 'border-transparent hover:scale-110'
+                data.color === key ? 'scale-125 border-fg-primary' : 'border-transparent hover:scale-110'
               }`}
               style={{ background: COLOR_MAP[key].border }}
               title={key.charAt(0) + key.slice(1).toLowerCase()}

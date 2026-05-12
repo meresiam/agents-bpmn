@@ -3,7 +3,7 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Code2, Workflow, Maximize2, Minimize2, Copy, Check, MessageCircle, Share2, StickyNote } from 'lucide-react';
+import { ArrowLeft, Code2, Workflow, Maximize2, Minimize2, Copy, Check, MessageCircle, Share2, Sparkles, StickyNote } from 'lucide-react';
 import ReactFlow, {
   Background,
   Controls,
@@ -21,10 +21,12 @@ import 'reactflow/dist/style.css';
 import { graphToReactFlow } from '@/lib/parse-process-graph';
 import { layoutProcessGraph } from '@/lib/layout';
 import { BpmnNode, BpmnEdge, formatProcessGraphPoolLabel } from '@/lib/types';
-import { getProcess, saveLayoutOverrides, ProcessDetail } from '@/services/process.service';
+import { getProcess, saveLayoutOverrides, updateProcess, ProcessDetail } from '@/services/process.service';
 import { getThreads, createThread, deleteThread, CommentThread } from '@/services/comment.service';
 import { getNotes, createNote, updateNote, deleteNote, StickyNote as StickyNoteType } from '@/services/sticky-note.service';
 import { useAuth } from '@/contexts/auth.context';
+import type { GeneratedGraph } from '@/services/chat.service';
+import { EditWithAIDialog } from '@/components/features/chat/EditWithAIDialog';
 import { CommentsPanel } from '@/components/shared/CommentsPanel';
 import { CommentPins } from './CommentPins';
 import { StickyNoteNode, StickyNoteNodeData } from './nodes/StickyNoteNode';
@@ -108,22 +110,22 @@ function FlowCanvasWithOverlays({
         minZoom={0.1}
         maxZoom={3}
         proOptions={{ hideAttribution: true }}
-        className="bg-zinc-100"
+        className="bg-[var(--diagram-surface)]"
       >
         <Background variant={BackgroundVariant.Dots} gap={22} size={0.55} color={diagramInline.dot} />
         <Controls showInteractive={false} />
-        <MiniMap pannable zoomable nodeColor={diagramInline.minimapNode} maskColor="rgb(244 244 245 / 0.65)" className="!bg-white/90" />
+        <MiniMap pannable zoomable nodeColor={diagramInline.minimapNode} maskColor="rgb(0 0 0 / 0.45)" style={{ backgroundColor: 'var(--surface-elevated)' }} />
 
         <Panel position="top-left">
           <div className="flex flex-col gap-2 items-start w-[calc(100vw-7rem)] sm:w-auto sm:max-w-md">
-            <div className="bg-white/95 backdrop-blur-sm border border-zinc-200 rounded-bpmn px-3 py-2 sm:px-4 sm:py-2.5 shadow-md w-full">
-              <span className="text-[9px] sm:text-[10px] font-semibold text-zinc-500 uppercase tracking-[0.08em] sm:tracking-[0.12em] block truncate">{slug}</span>
+            <div className="bg-surface-elevated/95 backdrop-blur-sm border border-border-app rounded-bpmn px-3 py-2 sm:px-4 sm:py-2.5 shadow-md w-full">
+              <span className="text-[9px] sm:text-[10px] font-semibold text-fg-secondary uppercase tracking-[0.08em] sm:tracking-[0.12em] block truncate">{slug}</span>
               {pool && (
-                <p className="text-[10px] text-zinc-800 mt-1 leading-snug border-l-[3px] border-zinc-600 pl-2.5 mb-1 line-clamp-2">
+                <p className="text-[10px] text-fg-primary mt-1 leading-snug border-l-[3px] border-fg-secondary pl-2.5 mb-1 line-clamp-2">
                   Pool: {pool}
                 </p>
               )}
-              <h2 className="text-xs sm:text-sm font-semibold text-zinc-900 tracking-tight line-clamp-2">{title}</h2>
+              <h2 className="text-xs sm:text-sm font-semibold text-fg-primary tracking-tight line-clamp-2">{title}</h2>
             </div>
             <BpmnLegend align="left" />
           </div>
@@ -146,13 +148,13 @@ function FlowCanvasWithOverlays({
 
       {/* Mode indicator */}
       {canvasMode !== 'default' && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 bg-zinc-900 text-white px-4 py-2 rounded-full shadow-lg text-xs font-medium flex items-center gap-2">
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 bg-fg-primary text-surface px-4 py-2 rounded-full shadow-lg text-xs font-medium flex items-center gap-2">
           {canvasMode === 'comment' ? (
             <><MessageCircle size={14} /> Clique para comentar</>
           ) : (
             <><StickyNote size={14} /> Clique para adicionar nota</>
           )}
-          <kbd className="px-1.5 py-0.5 bg-zinc-700 rounded text-[10px] font-mono ml-1">ESC</kbd>
+          <kbd className="px-1.5 py-0.5 bg-fg-secondary/40 rounded text-[10px] font-mono ml-1">ESC</kbd>
         </div>
       )}
 
@@ -177,6 +179,17 @@ export default function ProcessView() {
   const [canvasMode, setCanvasMode] = useState<CanvasMode>('default');
   const [codeCopied, setCodeCopied] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+  const [editWithAIOpen, setEditWithAIOpen] = useState(false);
+
+  const handleApplyAIEdit = useCallback(
+    async (next: GeneratedGraph) => {
+      if (!processId) return;
+      const updated = await updateProcess(processId, { graph: next.graph });
+      setProc(updated);
+      setEditWithAIOpen(false);
+    },
+    [processId],
+  );
 
   // Comments
   const [threads, setThreads] = useState<CommentThread[]>([]);
@@ -376,20 +389,20 @@ export default function ProcessView() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-100">
-        <p className="text-sm text-zinc-500">Carregando...</p>
+      <div className="min-h-screen flex items-center justify-center bg-surface">
+        <p className="text-sm text-fg-secondary">Carregando...</p>
       </div>
     );
   }
 
   if (error || !proc) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-100">
+      <div className="min-h-screen flex items-center justify-center bg-surface">
         <div className="text-center">
-          <Workflow size={48} className="mx-auto mb-4 text-zinc-300" />
-          <h1 className="text-xl font-bold text-zinc-800 mb-2">Processo nao encontrado</h1>
-          <p className="text-sm text-zinc-500 mb-6">O processo solicitado nao existe ou voce nao tem acesso.</p>
-          <Link href="/" className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white text-sm font-semibold rounded-bpmn hover:bg-zinc-800 transition-colors shadow-sm">
+          <Workflow size={48} className="mx-auto mb-4 text-fg-tertiary" />
+          <h1 className="text-xl font-bold text-fg-primary mb-2">Processo nao encontrado</h1>
+          <p className="text-sm text-fg-secondary mb-6">O processo solicitado nao existe ou voce nao tem acesso.</p>
+          <Link href="/" className="inline-flex items-center gap-2 px-4 py-2 bg-fg-primary text-surface text-sm font-semibold rounded-bpmn hover:opacity-90 transition-colors shadow-sm">
             <ArrowLeft size={14} /> Voltar ao inicio
           </Link>
         </div>
@@ -407,7 +420,7 @@ export default function ProcessView() {
             left: 'max(env(safe-area-inset-left, 0px), 1rem)',
           }}
         >
-          <button onClick={() => setFullscreen(false)} className="flex items-center gap-1.5 px-3 py-2 bg-white border border-zinc-200 rounded-bpmn text-xs font-medium text-zinc-800 hover:bg-zinc-100 transition-all shadow-sm">
+          <button onClick={() => setFullscreen(false)} className="flex items-center gap-1.5 px-3 py-2 bg-surface-elevated border border-border-app rounded-bpmn text-xs font-medium text-fg-primary hover:bg-surface-hover transition-all shadow-sm">
             <Minimize2 size={12} /> Sair
           </button>
         </div>
@@ -428,25 +441,25 @@ export default function ProcessView() {
   return (
     <div className="flex flex-col" style={{ height: '100dvh' }}>
       {/* Header */}
-      <header className="bg-white/90 backdrop-blur-md border-b border-zinc-200 px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-2 flex-shrink-0 shadow-sm">
+      <header className="bg-surface-elevated/90 backdrop-blur-md border-b border-border-app px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-2 flex-shrink-0 shadow-sm">
         <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
           <Link
             href="/"
-            className="text-zinc-400 hover:text-zinc-700 transition-colors shrink-0 inline-flex h-9 w-9 sm:h-auto sm:w-auto items-center justify-center -ml-1.5 sm:ml-0"
+            className="text-fg-tertiary hover:text-fg-primary transition-colors shrink-0 inline-flex h-9 w-9 sm:h-auto sm:w-auto items-center justify-center -ml-1.5 sm:ml-0"
             aria-label="Voltar"
           >
             <ArrowLeft size={18} />
           </Link>
           <div className="min-w-0 flex-1">
-            <span className="hidden sm:block text-[11px] font-semibold text-zinc-500 uppercase tracking-[0.08em] truncate">{proc.slug}</span>
-            <h1 className="text-xs sm:text-sm font-semibold text-zinc-900 tracking-tight truncate">{proc.title}</h1>
+            <span className="hidden sm:block text-[11px] font-semibold text-fg-secondary uppercase tracking-[0.08em] truncate">{proc.slug}</span>
+            <h1 className="text-xs sm:text-sm font-semibold text-fg-primary tracking-tight truncate">{proc.title}</h1>
           </div>
         </div>
 
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           <button
             onClick={handleShare}
-            className={`inline-flex items-center justify-center gap-1.5 h-9 w-9 sm:h-auto sm:w-auto sm:px-3 sm:py-1.5 rounded-bpmn text-xs font-semibold border transition-all ${shareCopied ? 'bg-green-50 text-green-700 border-green-200' : 'text-zinc-500 border-zinc-200 hover:bg-zinc-100'}`}
+            className={`inline-flex items-center justify-center gap-1.5 h-9 w-9 sm:h-auto sm:w-auto sm:px-3 sm:py-1.5 rounded-bpmn text-xs font-semibold border transition-all ${shareCopied ? 'bg-aila-success/10 text-aila-success border-aila-success/30' : 'text-fg-secondary border-border-app hover:bg-surface-hover'}`}
             title="Compartilhar"
             aria-label="Compartilhar"
           >
@@ -467,7 +480,7 @@ export default function ProcessView() {
           <button
             onClick={() => setCanvasMode((prev) => prev === 'comment' ? 'default' : 'comment')}
             className={`relative inline-flex items-center justify-center gap-1.5 h-9 w-9 sm:h-auto sm:w-auto sm:px-3 sm:py-1.5 rounded-bpmn text-xs font-semibold border transition-all ${
-              canvasMode === 'comment' ? 'bg-zinc-900 text-white border-zinc-900' : 'text-zinc-500 border-zinc-200 hover:bg-zinc-100'
+              canvasMode === 'comment' ? 'bg-fg-primary text-surface border-fg-primary' : 'text-fg-secondary border-border-app hover:bg-surface-hover'
             }`}
             title="Comentários (C)"
             aria-label="Comentários"
@@ -475,13 +488,13 @@ export default function ProcessView() {
             <MessageCircle size={14} className="sm:hidden" />
             <MessageCircle size={12} className="hidden sm:inline" />
             {unresolvedCount > 0 && (
-              <span className={`absolute sm:static -top-1 -right-1 sm:top-auto sm:right-auto text-[9px] sm:text-[10px] min-w-[16px] h-4 px-1 sm:px-1.5 sm:py-0.5 rounded-full font-bold inline-flex items-center justify-center ${canvasMode === 'comment' ? 'bg-white text-zinc-900' : 'bg-zinc-900 text-white'}`}>{unresolvedCount}</span>
+              <span className={`absolute sm:static -top-1 -right-1 sm:top-auto sm:right-auto text-[9px] sm:text-[10px] min-w-[16px] h-4 px-1 sm:px-1.5 sm:py-0.5 rounded-full font-bold inline-flex items-center justify-center ${canvasMode === 'comment' ? 'bg-surface text-fg-primary' : 'bg-fg-primary text-surface'}`}>{unresolvedCount}</span>
             )}
           </button>
           <button
             onClick={() => setCanvasMode((prev) => prev === 'note' ? 'default' : 'note')}
             className={`inline-flex items-center justify-center gap-1.5 h-9 w-9 sm:h-auto sm:w-auto sm:px-3 sm:py-1.5 rounded-bpmn text-xs font-semibold border transition-all ${
-              canvasMode === 'note' ? 'bg-yellow-400 text-yellow-900 border-yellow-500' : 'text-zinc-500 border-zinc-200 hover:bg-zinc-100'
+              canvasMode === 'note' ? 'bg-aila-warning text-fg-primary border-aila-warning' : 'text-fg-secondary border-border-app hover:bg-surface-hover'
             }`}
             title="Nota (N)"
             aria-label="Nota"
@@ -491,21 +504,31 @@ export default function ProcessView() {
           </button>
           <button
             onClick={() => setShowComments(!showComments)}
-            className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-bpmn text-xs font-semibold border transition-all ${showComments ? 'bg-zinc-100 text-zinc-900 border-zinc-300 shadow-sm' : 'text-zinc-500 border-zinc-200 hover:bg-zinc-100'}`}
+            className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-bpmn text-xs font-semibold border transition-all ${showComments ? 'bg-surface-hover text-fg-primary border-border-app shadow-sm' : 'text-fg-secondary border-border-app hover:bg-surface-hover'}`}
             title="Painel de comentários"
           >
             Drawer
           </button>
           <button
             onClick={() => setShowCode(!showCode)}
-            className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-bpmn text-xs font-semibold border transition-all ${showCode ? 'bg-zinc-100 text-zinc-900 border-zinc-300 shadow-sm' : 'text-zinc-500 border-zinc-200 hover:bg-zinc-100'}`}
+            className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-bpmn text-xs font-semibold border transition-all ${showCode ? 'bg-surface-hover text-fg-primary border-border-app shadow-sm' : 'text-fg-secondary border-border-app hover:bg-surface-hover'}`}
             title="Código JSON"
           >
             <Code2 size={12} /> Codigo
           </button>
           <button
+            onClick={() => setEditWithAIOpen(true)}
+            className="inline-flex items-center justify-center gap-1.5 h-9 w-9 sm:h-auto sm:w-auto sm:px-3 sm:py-1.5 rounded-bpmn text-xs font-semibold border border-aila-violet/30 bg-aila-violet/5 text-aila-violet hover:bg-aila-violet/10 transition-all"
+            title="Editar com IA"
+            aria-label="Editar com IA"
+          >
+            <Sparkles size={14} className="sm:hidden" />
+            <Sparkles size={12} className="hidden sm:inline" />
+            <span className="hidden sm:inline">Editar com IA</span>
+          </button>
+          <button
             onClick={() => setFullscreen(true)}
-            className="inline-flex items-center justify-center gap-1.5 h-9 w-9 sm:h-auto sm:w-auto sm:px-3 sm:py-1.5 text-zinc-500 border border-zinc-200 hover:bg-zinc-100 rounded-bpmn text-xs font-semibold transition-all"
+            className="inline-flex items-center justify-center gap-1.5 h-9 w-9 sm:h-auto sm:w-auto sm:px-3 sm:py-1.5 text-fg-secondary border border-border-app hover:bg-surface-hover rounded-bpmn text-xs font-semibold transition-all"
             title="Tela cheia"
             aria-label="Tela cheia"
           >
@@ -519,14 +542,14 @@ export default function ProcessView() {
       {/* Content */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {showCode && (
-          <div style={{ width: 380, flexShrink: 0 }} className="border-r border-zinc-200 flex flex-col overflow-hidden bg-zinc-950">
-            <div className="px-3 py-1.5 bg-zinc-900 text-zinc-500 text-[10px] font-mono font-medium tracking-wide border-b border-zinc-800 flex items-center justify-between gap-2">
+          <div style={{ width: 380, flexShrink: 0 }} className="border-r border-border-app flex flex-col overflow-hidden bg-aila-black">
+            <div className="px-3 py-1.5 bg-aila-graphite-900 text-aila-graphite-300 text-[10px] font-mono font-medium tracking-wide border-b border-aila-graphite-700 flex items-center justify-between gap-2">
               <span>graph.json</span>
-              <button type="button" onClick={handleCopyGraphJson} className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-sans font-semibold text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors">
-                {codeCopied ? <><Check size={11} className="text-green-500" /> Copiado</> : <><Copy size={11} /> Copiar</>}
+              <button type="button" onClick={handleCopyGraphJson} className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-sans font-semibold text-aila-graphite-400 hover:bg-aila-graphite-700 hover:text-aila-cream transition-colors">
+                {codeCopied ? <><Check size={11} className="text-aila-success" /> Copiado</> : <><Copy size={11} /> Copiar</>}
               </button>
             </div>
-            <pre className="flex-1 p-4 bg-zinc-950 text-zinc-300 font-mono text-[11px] overflow-auto leading-relaxed">{JSON.stringify(proc.graph, null, 2)}</pre>
+            <pre className="flex-1 p-4 bg-aila-black text-aila-graphite-200 font-mono text-[11px] overflow-auto leading-relaxed">{JSON.stringify(proc.graph, null, 2)}</pre>
           </div>
         )}
 
@@ -545,18 +568,18 @@ export default function ProcessView() {
           {/* New comment thread input — positioned at click location */}
           {newThreadPrompt && (
             <div
-              className="absolute z-30 bg-white border border-zinc-200 rounded-bpmn shadow-xl p-3 w-72"
+              className="absolute z-30 bg-surface-elevated border border-border-app rounded-bpmn shadow-xl p-3 w-72"
               style={{
                 left: Math.min(newThreadPrompt.screenX + 16, (typeof window !== 'undefined' ? window.innerWidth - 320 : 600)),
                 top: Math.min(newThreadPrompt.screenY - 20, (typeof window !== 'undefined' ? window.innerHeight - 160 : 400)),
               }}
             >
-              <p className="text-[11px] font-semibold text-zinc-700 mb-2">Novo comentario</p>
+              <p className="text-[11px] font-semibold text-fg-primary mb-2">Novo comentario</p>
               <form onSubmit={(e) => { e.preventDefault(); handleCreateThread(); }} className="flex gap-2">
-                <input type="text" value={newThreadContent} onChange={(e) => setNewThreadContent(e.target.value)} placeholder="Escreva seu comentario..." autoFocus className="flex-1 px-3 py-2 text-xs border border-zinc-200 rounded-bpmn bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10" />
-                <button type="submit" disabled={!newThreadContent.trim()} className="px-3 py-2 bg-zinc-900 text-white rounded-bpmn hover:bg-zinc-800 disabled:opacity-50">Enviar</button>
+                <input type="text" value={newThreadContent} onChange={(e) => setNewThreadContent(e.target.value)} placeholder="Escreva seu comentario..." autoFocus className="flex-1 px-3 py-2 text-xs border border-border-app rounded-bpmn bg-surface-elevated text-fg-primary placeholder:text-fg-tertiary focus:outline-none focus:ring-2 focus:ring-aila-violet/30" />
+                <button type="submit" disabled={!newThreadContent.trim()} className="px-3 py-2 bg-fg-primary text-surface rounded-bpmn hover:opacity-90 disabled:opacity-50">Enviar</button>
               </form>
-              <button type="button" onClick={() => setNewThreadPrompt(null)} className="text-[10px] text-zinc-400 hover:text-zinc-700 mt-1">Cancelar</button>
+              <button type="button" onClick={() => setNewThreadPrompt(null)} className="text-[10px] text-fg-tertiary hover:text-fg-primary mt-1">Cancelar</button>
             </div>
           )}
         </div>
@@ -570,6 +593,16 @@ export default function ProcessView() {
           />
         )}
       </div>
+
+      {editWithAIOpen && (
+        <EditWithAIDialog
+          processId={processId}
+          currentGraph={proc.graph}
+          tenantId={proc.tenantId}
+          onClose={() => setEditWithAIOpen(false)}
+          onApply={handleApplyAIEdit}
+        />
+      )}
     </div>
   );
 }

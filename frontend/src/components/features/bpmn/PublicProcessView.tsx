@@ -70,7 +70,7 @@ function FlowCanvas({
         minZoom={0.1}
         maxZoom={3}
         proOptions={{ hideAttribution: true }}
-        className="bg-zinc-100"
+        className="bg-[var(--diagram-surface)]"
       >
         <Background variant={BackgroundVariant.Dots} gap={22} size={0.55} color={diagramInline.dot} />
         <Controls showInteractive={false} />
@@ -78,19 +78,19 @@ function FlowCanvas({
           pannable
           zoomable
           nodeColor={diagramInline.minimapNode}
-          maskColor="rgb(244 244 245 / 0.65)"
-          className="!bg-white/90"
+          maskColor="rgb(0 0 0 / 0.45)"
+          style={{ backgroundColor: 'var(--surface-elevated)' }}
         />
 
         <Panel position="top-left">
           <div className="flex flex-col gap-2 items-start w-[calc(100vw-7rem)] sm:w-auto sm:max-w-md">
-            <div className="bg-white/95 backdrop-blur-sm border border-zinc-200 rounded-bpmn px-3 py-2 sm:px-4 sm:py-2.5 shadow-md w-full">
+            <div className="bg-surface-elevated/95 backdrop-blur-sm border border-border-app rounded-bpmn px-3 py-2 sm:px-4 sm:py-2.5 shadow-md w-full">
               {pool && (
-                <p className="text-[10px] text-zinc-800 leading-snug border-l-[3px] border-zinc-600 pl-2.5 mb-1 line-clamp-2">
+                <p className="text-[10px] text-fg-primary leading-snug border-l-[3px] border-fg-secondary pl-2.5 mb-1 line-clamp-2">
                   Pool: {pool}
                 </p>
               )}
-              <h2 className="text-xs sm:text-sm font-semibold text-zinc-900 tracking-tight line-clamp-2">
+              <h2 className="text-xs sm:text-sm font-semibold text-fg-primary tracking-tight line-clamp-2">
                 {title}
               </h2>
             </div>

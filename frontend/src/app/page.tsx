@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
+import { Menu } from 'lucide-react';
 import { useAuth } from '@/contexts/auth.context';
 import {
   createProcess,
@@ -11,10 +12,12 @@ import {
   ProcessSummary,
   TenantSummary,
 } from '@/services/process.service';
-import { generateGraph, GeneratedGraph } from '@/services/chat.service';
+import { generateGraphStream, GeneratedGraph } from '@/services/chat.service';
 import { ChatSidebar } from '@/components/layout/ChatSidebar';
 import { AnimatedAIChat, ChatAttachment } from '@/components/ui/animated-ai-chat';
 import { GraphPreviewModal } from '@/components/features/chat/GraphPreviewModal';
+import { TenantFlowsGrid } from '@/components/features/dashboard/TenantFlowsGrid';
+import { AilaLogo } from '@/components/brand/AilaLogo';
 
 const ProcessGraphEditor = dynamic(
   () => import('@/components/features/bpmn/ProcessGraphEditor'),
@@ -26,6 +29,7 @@ export default function HomePage() {
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
 
   const [showEditor, setShowEditor] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [tenants, setTenants] = useState<TenantSummary[]>([]);
   const [processesByTenant, setProcessesByTenant] = useState<Record<string, ProcessSummary[]>>({});
@@ -39,6 +43,11 @@ export default function HomePage() {
   const [generating, setGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [preview, setPreview] = useState<GeneratedGraph | null>(null);
+  const [streamText, setStreamText] = useState('');
+  const [streamStats, setStreamStats] = useState<{ nodes: number; edges: number }>({
+    nodes: 0,
+    edges: 0,
+  });
   const [lastSubmission, setLastSubmission] = useState<{
     prompt: string;
     files: File[];
@@ -96,6 +105,13 @@ export default function HomePage() {
     [processesByTenant],
   );
 
+  // Pre-carrega processes do tenant ativo (boot default + troca de tenant)
+  useEffect(() => {
+    if (!isSuperAdmin || !activeTenantId) return;
+    if (processesByTenant[activeTenantId]) return;
+    handleSelectTenant(activeTenantId);
+  }, [isSuperAdmin, activeTenantId, processesByTenant, handleSelectTenant]);
+
   // Sidebar click on a tenant folder → also targets that tenant in the chat
   const handleTenantExpanded = useCallback(
     (tenantId: string) => {
@@ -109,12 +125,28 @@ export default function HomePage() {
     async (input: { prompt: string; files: File[]; tenantId: string }) => {
       setGenerating(true);
       setGenerationError(null);
+      setStreamText('');
+      setStreamStats({ nodes: 0, edges: 0 });
+      let buffer = '';
       try {
-        const result = await generateGraph({
-          prompt: input.prompt,
-          files: input.files,
-          tenantId: isSuperAdmin ? input.tenantId : undefined,
-        });
+        const result = await generateGraphStream(
+          {
+            prompt: input.prompt,
+            files: input.files,
+            tenantId: isSuperAdmin ? input.tenantId : undefined,
+          },
+          {
+            onDelta: ({ text }) => {
+              buffer += text;
+              setStreamText(buffer);
+              // Heuristica leve: conta quantos "id": e "from": "..." apareceram
+              // pra mostrar progresso ao usuario sem parsear o JSON parcial.
+              const nodeMatches = buffer.match(/"id"\s*:/g)?.length ?? 0;
+              const edgeMatches = buffer.match(/"from"\s*:/g)?.length ?? 0;
+              setStreamStats({ nodes: nodeMatches, edges: edgeMatches });
+            },
+          },
+        );
         setPreview(result);
       } catch (err) {
         setGenerationError((err as Error).message);
@@ -210,13 +242,15 @@ export default function HomePage() {
   }
 
   return (
-    <div className="flex h-screen bg-surface overflow-hidden">
+    <div className="flex h-[100dvh] bg-surface overflow-hidden">
       <ChatSidebar
         isSuperAdmin={!!isSuperAdmin}
         tenants={tenants}
         processesByTenant={processesByTenant}
         loadingTenant={loadingTenant}
         userName={user?.name}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
         onSelectTenant={handleTenantExpanded}
         onNewChat={() => {
           setPreview(null);
@@ -226,19 +260,41 @@ export default function HomePage() {
         onOpenEditor={() => setShowEditor(true)}
         onLogout={logout}
       />
-      <main className="flex-1 overflow-y-auto relative">
+      <main className="flex-1 overflow-y-auto relative flex flex-col">
+        {/* Ambient glows — cobrem a página toda (atrás do conteúdo). */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden -z-0">
+          <div className="absolute top-0 left-1/4 w-[28rem] sm:w-[36rem] h-[28rem] sm:h-[36rem] bg-aila-violet/15 rounded-full mix-blend-normal blur-[128px] animate-pulse" />
+          <div className="absolute bottom-0 right-1/4 w-[28rem] sm:w-[36rem] h-[28rem] sm:h-[36rem] bg-aila-purple/10 rounded-full mix-blend-normal blur-[128px] animate-pulse [animation-delay:700ms]" />
+          <div className="absolute top-1/3 right-1/3 w-72 sm:w-96 h-72 sm:h-96 bg-aila-cyan/10 rounded-full mix-blend-normal blur-[96px] animate-pulse [animation-delay:1200ms]" />
+        </div>
+
+        {/* Mobile top bar — hamburger + logo. Esconde no desktop (sidebar fixa). */}
+        <div className="sticky top-0 z-30 flex items-center justify-between gap-2 px-3 py-2 bg-surface/90 backdrop-blur-sm border-b border-border-app lg:hidden">
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 -ml-1 text-fg-primary hover:bg-surface-hover rounded-aila transition-colors"
+            aria-label="Abrir menu"
+          >
+            <Menu size={20} />
+          </button>
+          <AilaLogo size={22} wordmarkSuffix="BPMN" />
+          <div className="w-9" aria-hidden />
+        </div>
         {initialLoading ? (
-          <div className="h-full flex items-center justify-center">
+          <div className="flex-1 flex items-center justify-center">
             <p className="text-sm text-fg-secondary">Carregando fluxos…</p>
           </div>
         ) : (
-          <div className="min-h-full flex flex-col items-center">
+          <div className="flex-1 flex flex-col items-center w-full relative z-10">
             <AnimatedAIChat
               onSubmit={handleChatSubmit}
               isLoading={generating}
               tenantOptions={isSuperAdmin ? tenants : undefined}
               selectedTenantId={isSuperAdmin ? activeTenantId : user?.tenantId ?? null}
               onSelectTenant={(tid) => setActiveTenantId(tid)}
+              streamingText={streamText}
+              streamingStats={streamStats}
             />
             {generationError && !preview && (
               <div className="mt-2 max-w-2xl w-full px-6">
@@ -247,6 +303,19 @@ export default function HomePage() {
                 </div>
               </div>
             )}
+            {/* Grid de fluxos: escondido no mobile pra manter home limpo (padrão Claude.ai).
+                Acesso aos fluxos no mobile = drawer → expandir tenant → escolher. */}
+            <div className="hidden lg:block w-full">
+              <TenantFlowsGrid
+                tenantId={isSuperAdmin ? activeTenantId : user?.tenantId ?? null}
+                processes={
+                  processesByTenant[
+                    (isSuperAdmin ? activeTenantId : user?.tenantId) ?? ''
+                  ] ?? []
+                }
+                loading={loadingTenant === (isSuperAdmin ? activeTenantId : user?.tenantId)}
+              />
+            </div>
           </div>
         )}
       </main>
