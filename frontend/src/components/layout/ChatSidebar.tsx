@@ -9,6 +9,7 @@ import {
   LogOut,
   PlusIcon,
   Search,
+  Shield,
   Workflow,
   Code2,
   X,
@@ -197,6 +198,16 @@ export function ChatSidebar({
 
       {/* Footer */}
       <div className="border-t border-border-app px-2 py-2 space-y-1">
+        {isSuperAdmin && (
+          <Link
+            href="/admin"
+            onClick={onClose}
+            className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-fg-secondary hover:text-fg-primary hover:bg-surface-hover rounded-aila transition-colors"
+          >
+            <Shield size={14} />
+            <span>Admin</span>
+          </Link>
+        )}
         <button
           type="button"
           onClick={() => {
