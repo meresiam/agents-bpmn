@@ -10,10 +10,14 @@ interface ExportButtonProps {
   filename?: string;
 }
 
-const TARGET_RESOLUTION_PX = 3200;
+const TARGET_RESOLUTION_PX = 5120;
+const CAPTURE_PIXEL_RATIO = 2;
 const MARGIN_FRACTION = 0.06;
 const PRINT_DPI = 150;
 const MM_PER_PX = 25.4 / PRINT_DPI;
+const SINGLE_PAGE_SHORT_EDGE_MM = 297;
+const SINGLE_PAGE_MAX_LONG_EDGE_MM = 2000;
+const SINGLE_PAGE_MARGIN_MM = 12;
 
 export function ExportButton({ flowRef, filename = 'fluxograma' }: ExportButtonProps) {
   const [open, setOpen] = useState(false);
@@ -53,7 +57,7 @@ export function ExportButton({ flowRef, filename = 'fluxograma' }: ExportButtonP
     const { toPng } = await import('html-to-image');
     const dataUrl = await toPng(viewport, {
       backgroundColor: ZINC[100],
-      pixelRatio: 1,
+      pixelRatio: CAPTURE_PIXEL_RATIO,
       width: imageWidth,
       height: imageHeight,
       filter: filterNode,
@@ -83,33 +87,39 @@ export function ExportButton({ flowRef, filename = 'fluxograma' }: ExportButtonP
     }
   }, [captureFullGraph, filename]);
 
-  const exportPdfA3 = useCallback(async () => {
+  const exportPdfSinglePage = useCallback(async () => {
     setLoading(true);
     try {
       const { dataUrl, width, height } = await captureFullGraph();
       const { default: jsPDF } = await import('jspdf');
 
-      const pageW = 420;
-      const pageH = 297;
-      const margin = 10;
-      const availW = pageW - margin * 2;
-      const availH = pageH - margin * 2;
-
       const imgAspect = width / height;
-      let renderW = availW;
-      let renderH = availW / imgAspect;
-      if (renderH > availH) {
-        renderH = availH;
-        renderW = availH * imgAspect;
+      let pageW: number;
+      let pageH: number;
+      if (imgAspect >= 1) {
+        pageH = SINGLE_PAGE_SHORT_EDGE_MM;
+        pageW = SINGLE_PAGE_SHORT_EDGE_MM * imgAspect;
+        if (pageW > SINGLE_PAGE_MAX_LONG_EDGE_MM) {
+          pageW = SINGLE_PAGE_MAX_LONG_EDGE_MM;
+          pageH = SINGLE_PAGE_MAX_LONG_EDGE_MM / imgAspect;
+        }
+      } else {
+        pageW = SINGLE_PAGE_SHORT_EDGE_MM;
+        pageH = SINGLE_PAGE_SHORT_EDGE_MM / imgAspect;
+        if (pageH > SINGLE_PAGE_MAX_LONG_EDGE_MM) {
+          pageH = SINGLE_PAGE_MAX_LONG_EDGE_MM;
+          pageW = SINGLE_PAGE_MAX_LONG_EDGE_MM * imgAspect;
+        }
       }
-      const offsetX = (pageW - renderW) / 2;
-      const offsetY = (pageH - renderH) / 2;
 
-      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a3' });
-      pdf.addImage(dataUrl, 'PNG', offsetX, offsetY, renderW, renderH);
+      const availW = pageW - SINGLE_PAGE_MARGIN_MM * 2;
+      const availH = pageH - SINGLE_PAGE_MARGIN_MM * 2;
+
+      const pdf = new jsPDF({ unit: 'mm', format: [pageW, pageH] });
+      pdf.addImage(dataUrl, 'PNG', SINGLE_PAGE_MARGIN_MM, SINGLE_PAGE_MARGIN_MM, availW, availH);
       pdf.save(`${filename}.pdf`);
     } catch (err) {
-      console.error('Export PDF A3 failed:', err);
+      console.error('Export PDF single page failed:', err);
     } finally {
       setLoading(false);
       setOpen(false);
@@ -209,16 +219,16 @@ export function ExportButton({ flowRef, filename = 'fluxograma' }: ExportButtonP
           >
             <Image size={14} />
             <span className="flex-1">
-              PNG <span className="text-zinc-500 font-normal">(alta resolução)</span>
+              PNG <span className="text-zinc-500 font-normal">(máxima resolução)</span>
             </span>
           </button>
           <button
-            onClick={exportPdfA3}
+            onClick={exportPdfSinglePage}
             className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium text-zinc-800 hover:bg-zinc-100 transition-colors border-t border-zinc-100 text-left"
           >
             <FileText size={14} />
             <span className="flex-1">
-              PDF <span className="text-zinc-500 font-normal">(A3, 1 página)</span>
+              PDF <span className="text-zinc-500 font-normal">(1 página, tamanho do fluxo)</span>
             </span>
           </button>
           <button
@@ -227,7 +237,7 @@ export function ExportButton({ flowRef, filename = 'fluxograma' }: ExportButtonP
           >
             <FileStack size={14} />
             <span className="flex-1">
-              PDF <span className="text-zinc-500 font-normal">(A4 paginado, legível)</span>
+              PDF <span className="text-zinc-500 font-normal">(A4 paisagem paginado)</span>
             </span>
           </button>
         </div>
