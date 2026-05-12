@@ -59,6 +59,8 @@ export async function createProcess(data: {
   description?: string;
   category?: ProcessCategory;
   graph: ProcessGraphJson;
+  /** Opcional. Apenas SUPER_ADMIN; demais roles ignoram. */
+  tenantId?: string;
 }): Promise<ProcessDetail> {
   return apiFetch<ProcessDetail>('/processes', {
     method: 'POST',
