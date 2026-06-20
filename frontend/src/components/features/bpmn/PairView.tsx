@@ -1,9 +1,10 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Workflow, Pencil } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
+import { ArrowLeft, Workflow, Pencil, Sparkles, Loader2 } from 'lucide-react';
 import ReactFlow, {
   Background,
   Controls,
@@ -16,8 +17,11 @@ import 'reactflow/dist/style.css';
 import { graphToReactFlow } from '@/lib/parse-process-graph';
 import { layoutProcessGraph } from '@/lib/layout';
 import { BpmnNode, BpmnEdge, formatProcessGraphPoolLabel } from '@/lib/types';
-import { getProcessPair, ProcessDetail } from '@/services/process.service';
+import { getProcessPair, updateProcess, ProcessDetail } from '@/services/process.service';
+import { analyzeGap, Gap, GapAnalysisResult, GeneratedGraph } from '@/services/chat.service';
 import { useAuth } from '@/contexts/auth.context';
+import { GapPanel } from './GapPanel';
+import { EditWithAIDialog } from '@/components/features/chat/EditWithAIDialog';
 import { ActivityNode } from './nodes/ActivityNode';
 import { DecisionNode } from './nodes/DecisionNode';
 import { StartEndNode } from './nodes/StartEndNode';
@@ -147,6 +151,45 @@ export default function PairView() {
   // Mobile: qual face mostrar (abas empilhadas — mobile-first, Nielsen H8).
   const [mobileFace, setMobileFace] = useState<Face>('asIs');
 
+  // Análise de GAP (Epic 4.B)
+  const [gapResult, setGapResult] = useState<GapAnalysisResult | null>(null);
+  const [gapLoading, setGapLoading] = useState(false);
+  const [gapPanelOpen, setGapPanelOpen] = useState(false);
+  const [gapError, setGapError] = useState<string | null>(null);
+  // Gap sendo aplicado no TO-BE (abre o EditWithAIDialog pré-preenchido)
+  const [applyingGap, setApplyingGap] = useState<Gap | null>(null);
+
+  const runAnalyze = useCallback(async () => {
+    if (!processId) return;
+    setGapLoading(true);
+    setGapError(null);
+    setGapPanelOpen(true);
+    try {
+      const result = await analyzeGap(processId);
+      setGapResult(result);
+    } catch (err) {
+      setGapError((err as Error).message);
+      setGapPanelOpen(false);
+    } finally {
+      setGapLoading(false);
+    }
+  }, [processId]);
+
+  const handleApplyToBe = useCallback((gap: Gap) => {
+    // Pré-preenche o editor de IA do TO-BE com a recomendação do gap.
+    setApplyingGap(gap);
+  }, []);
+
+  const handleApplyAIEdit = useCallback(
+    async (next: GeneratedGraph) => {
+      if (!toBe) return;
+      const updated = await updateProcess(toBe.id, { graph: next.graph });
+      setToBe(updated);
+      setApplyingGap(null);
+    },
+    [toBe],
+  );
+
   useEffect(() => {
     if (!authLoading && !isAuthenticated) router.push('/login');
   }, [authLoading, isAuthenticated, router]);
@@ -187,7 +230,7 @@ export default function PairView() {
   }
 
   return (
-    <div className="flex flex-col" style={{ height: '100dvh' }}>
+    <div className="relative flex flex-col overflow-hidden" style={{ height: '100dvh' }}>
       {/* Header */}
       <header className="bg-surface-elevated/90 backdrop-blur-md border-b border-border-app px-3 sm:px-6 py-2.5 flex items-center justify-between gap-2 flex-shrink-0 shadow-sm">
         <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
@@ -200,21 +243,41 @@ export default function PairView() {
           </div>
         </div>
 
-        {/* Segmented control — só no mobile (no desktop os dois aparecem lado a lado) */}
-        <div className="flex sm:hidden items-center gap-1 bg-surface rounded-bpmn border border-border-app p-0.5">
-          {(['asIs', 'toBe'] as Face[]).map((f) => (
-            <button
-              key={f}
-              onClick={() => setMobileFace(f)}
-              className={`px-3 py-1.5 rounded-[6px] text-[11px] font-bold uppercase tracking-wide transition-all ${
-                mobileFace === f ? 'bg-fg-primary text-surface' : 'text-fg-secondary'
-              }`}
-            >
-              {FACE_META[f].label}
-            </button>
-          ))}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Segmented control — só no mobile (no desktop os dois aparecem lado a lado) */}
+          <div className="flex sm:hidden items-center gap-1 bg-surface rounded-bpmn border border-border-app p-0.5">
+            {(['asIs', 'toBe'] as Face[]).map((f) => (
+              <button
+                key={f}
+                onClick={() => setMobileFace(f)}
+                className={`px-3 py-1.5 rounded-[6px] text-[11px] font-bold uppercase tracking-wide transition-all ${
+                  mobileFace === f ? 'bg-fg-primary text-surface' : 'text-fg-secondary'
+                }`}
+              >
+                {FACE_META[f].label}
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={gapResult ? () => setGapPanelOpen(true) : runAnalyze}
+            disabled={gapLoading}
+            className="inline-flex items-center justify-center gap-1.5 h-9 w-9 sm:h-auto sm:w-auto sm:px-3 sm:py-1.5 rounded-bpmn text-xs font-semibold border border-aila-violet/30 bg-aila-violet/5 text-aila-violet hover:bg-aila-violet/10 transition-all disabled:opacity-50"
+            title="Analisar GAP do processo"
+            aria-label="Analisar GAP"
+          >
+            {gapLoading ? <Loader2 size={14} className="animate-spin sm:hidden" /> : <Sparkles size={14} className="sm:hidden" />}
+            {gapLoading ? <Loader2 size={12} className="animate-spin hidden sm:inline" /> : <Sparkles size={12} className="hidden sm:inline" />}
+            <span className="hidden sm:inline">{gapLoading ? 'Analisando…' : gapResult ? 'Ver GAP' : 'Analisar GAP'}</span>
+          </button>
         </div>
       </header>
+
+      {gapError && (
+        <div className="px-4 py-2 bg-aila-error/10 border-b border-aila-error/30 text-xs text-aila-error">
+          {gapError}
+        </div>
+      )}
 
       {/* Desktop: split lado a lado */}
       <div className="hidden sm:flex flex-1 overflow-hidden divide-x divide-border-app">
@@ -242,6 +305,32 @@ export default function PairView() {
           </>
         )}
       </div>
+
+      {/* Painel de GAP (Epic 4.B.3) */}
+      <AnimatePresence>
+        {gapPanelOpen && gapResult && (
+          <GapPanel
+            key="gap-panel"
+            result={gapResult}
+            onClose={() => setGapPanelOpen(false)}
+            onReanalyze={runAnalyze}
+            onApplyToBe={handleApplyToBe}
+            reanalyzing={gapLoading}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Aplicar gap no TO-BE via edição de IA (Epic 4.B.3) */}
+      {applyingGap && (
+        <EditWithAIDialog
+          processId={toBe.id}
+          currentGraph={toBe.graph}
+          tenantId={toBe.tenantId}
+          initialPrompt={`${applyingGap.recomendacao}${applyingGap.solucao.descricao ? ' — ' + applyingGap.solucao.descricao : ''}`}
+          onClose={() => setApplyingGap(null)}
+          onApply={handleApplyAIEdit}
+        />
+      )}
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import type { ProcessGraphJson } from '@/types/process.types';
 import type { ProcessCategory } from './process.service';
 
@@ -23,6 +24,46 @@ export interface GenerateInput {
   mode?: ChatMode;
   existingGraph?: ProcessGraphJson;
   processId?: string;
+}
+
+// ─── Análise de GAP (Epic 4.B) ────────────────────────────────────────────────
+
+export type GapTipo =
+  | 'GARGALO'
+  | 'RETRABALHO'
+  | 'ETAPA_MANUAL'
+  | 'FALTA_DE_DADO'
+  | 'RISCO_COMPLIANCE'
+  | 'ESPERA'
+  | 'OUTRO';
+export type GapSeveridade = 'ALTA' | 'MEDIA' | 'BAIXA';
+export type GapAbordagem = 'IA' | 'AUTOMACAO' | 'PROCESSO' | 'PESSOAS';
+
+export interface Gap {
+  id: string;
+  titulo: string;
+  tipo: GapTipo;
+  severidade: GapSeveridade;
+  localizacao: string;
+  recomendacao: string;
+  solucao: { abordagem: GapAbordagem; precisaIA: boolean; descricao: string };
+}
+
+export interface GapAnalysisResult {
+  mode: 'pair' | 'single';
+  resumo: string;
+  gaps: Gap[];
+  llmMs: number;
+  asIsTitle: string;
+  toBeTitle?: string;
+}
+
+/** POST /chat/analyze-gap — roda a análise de GAP do processo (par ou single). */
+export async function analyzeGap(processId: string): Promise<GapAnalysisResult> {
+  return apiFetch<GapAnalysisResult>('/chat/analyze-gap', {
+    method: 'POST',
+    body: JSON.stringify({ processId }),
+  });
 }
 
 function getToken(): string | null {

@@ -34,6 +34,8 @@ interface EditWithAIDialogProps {
   processId: string;
   currentGraph: ProcessGraphJson;
   tenantId: string;
+  /** Pré-preenche o textarea (ex: recomendação de um gap vinda do GapPanel). */
+  initialPrompt?: string;
   /** Quem chama controla open/close pra preservar o lugar onde o botao mora. */
   onClose: () => void;
   /** Chamado quando o usuario aplica a edicao. Recebe o novo grafo + meta. */
@@ -51,10 +53,11 @@ export function EditWithAIDialog({
   processId,
   currentGraph,
   tenantId,
+  initialPrompt,
   onClose,
   onApply,
 }: EditWithAIDialogProps) {
-  const [prompt, setPrompt] = useState('');
+  const [prompt, setPrompt] = useState(initialPrompt ?? '');
   const [generating, setGenerating] = useState(false);
   const [streamText, setStreamText] = useState('');
   const [streamStats, setStreamStats] = useState({ nodes: 0, edges: 0 });
