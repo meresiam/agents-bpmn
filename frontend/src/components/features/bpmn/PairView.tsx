@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Workflow, Pencil, Sparkles, Loader2 } from 'lucide-react';
+import { ArrowLeft, Workflow, Pencil, Sparkles, Loader2, Wand2 } from 'lucide-react';
 import ReactFlow, {
   Background,
   Controls,
@@ -22,6 +22,7 @@ import { analyzeGap, Gap, GapAnalysisResult, GeneratedGraph } from '@/services/c
 import { useAuth } from '@/contexts/auth.context';
 import { GapPanel } from './GapPanel';
 import { EditWithAIDialog } from '@/components/features/chat/EditWithAIDialog';
+import { SUGGEST_TO_BE_PROMPT, TO_BE_HINTS, buildGapEditPrompt } from '@/lib/to-be-prompts';
 import { ActivityNode } from './nodes/ActivityNode';
 import { DecisionNode } from './nodes/DecisionNode';
 import { StartEndNode } from './nodes/StartEndNode';
@@ -158,6 +159,8 @@ export default function PairView() {
   const [gapError, setGapError] = useState<string | null>(null);
   // Gap sendo aplicado no TO-BE (abre o EditWithAIDialog pré-preenchido)
   const [applyingGap, setApplyingGap] = useState<Gap | null>(null);
+  // Epic 4.C.1 — geração assistida do TO-BE (otimiza o AS-IS via IA)
+  const [suggestingToBe, setSuggestingToBe] = useState(false);
 
   const runAnalyze = useCallback(async () => {
     if (!processId) return;
@@ -260,6 +263,17 @@ export default function PairView() {
           </div>
 
           <button
+            onClick={() => setSuggestingToBe(true)}
+            className="inline-flex items-center justify-center gap-1.5 h-9 w-9 sm:h-auto sm:w-auto sm:px-3 sm:py-1.5 rounded-bpmn text-xs font-semibold border border-aila-violet/30 bg-aila-violet/5 text-aila-violet hover:bg-aila-violet/10 transition-all disabled:opacity-50"
+            title="Sugerir TO-BE otimizado a partir do AS-IS via IA"
+            aria-label="Sugerir TO-BE"
+          >
+            <Wand2 size={14} className="sm:hidden" />
+            <Wand2 size={12} className="hidden sm:inline" />
+            <span className="hidden sm:inline">Sugerir TO-BE</span>
+          </button>
+
+          <button
             onClick={gapResult ? () => setGapPanelOpen(true) : runAnalyze}
             disabled={gapLoading}
             className="inline-flex items-center justify-center gap-1.5 h-9 w-9 sm:h-auto sm:w-auto sm:px-3 sm:py-1.5 rounded-bpmn text-xs font-semibold border border-aila-violet/30 bg-aila-violet/5 text-aila-violet hover:bg-aila-violet/10 transition-all disabled:opacity-50"
@@ -320,13 +334,30 @@ export default function PairView() {
         )}
       </AnimatePresence>
 
-      {/* Aplicar gap no TO-BE via edição de IA (Epic 4.B.3) */}
+      {/* Sugerir TO-BE: otimiza o AS-IS via IA e persiste no TO-BE (Epic 4.C.1) */}
+      {suggestingToBe && (
+        <EditWithAIDialog
+          processId={toBe.id}
+          currentGraph={asIs.graph}
+          tenantId={toBe.tenantId}
+          title="Sugerir TO-BE com IA"
+          hints={TO_BE_HINTS}
+          initialPrompt={SUGGEST_TO_BE_PROMPT}
+          onClose={() => setSuggestingToBe(false)}
+          onApply={async (next) => {
+            await handleApplyAIEdit(next);
+            setSuggestingToBe(false);
+          }}
+        />
+      )}
+
+      {/* Aplicar gap no TO-BE via edição de IA — com gancho de automação/IA AILA (Epic 4.B.3 + 4.C.2) */}
       {applyingGap && (
         <EditWithAIDialog
           processId={toBe.id}
           currentGraph={toBe.graph}
           tenantId={toBe.tenantId}
-          initialPrompt={`${applyingGap.recomendacao}${applyingGap.solucao.descricao ? ' — ' + applyingGap.solucao.descricao : ''}`}
+          initialPrompt={buildGapEditPrompt(applyingGap)}
           onClose={() => setApplyingGap(null)}
           onApply={handleApplyAIEdit}
         />

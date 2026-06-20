@@ -36,13 +36,17 @@ interface EditWithAIDialogProps {
   tenantId: string;
   /** Pré-preenche o textarea (ex: recomendação de um gap vinda do GapPanel). */
   initialPrompt?: string;
+  /** Título do cabeçalho. Default: "Editar fluxo com IA". Ex: "Sugerir TO-BE com IA" (4.C.1). */
+  title?: string;
+  /** Sugestões rápidas (chips). Default: dicas de edição pontual. */
+  hints?: string[];
   /** Quem chama controla open/close pra preservar o lugar onde o botao mora. */
   onClose: () => void;
   /** Chamado quando o usuario aplica a edicao. Recebe o novo grafo + meta. */
   onApply: (next: GeneratedGraph) => Promise<void> | void;
 }
 
-const QUICK_HINTS = [
+const DEFAULT_HINTS = [
   'Adicione uma etapa de validacao antes do envio',
   'Remova a decisao "Cliente novo?" e mantenha o caminho positivo',
   'Renomeie a lane "Comercial" para "Vendas"',
@@ -54,6 +58,8 @@ export function EditWithAIDialog({
   currentGraph,
   tenantId,
   initialPrompt,
+  title = 'Editar fluxo com IA',
+  hints = DEFAULT_HINTS,
   onClose,
   onApply,
 }: EditWithAIDialogProps) {
@@ -175,7 +181,7 @@ export function EditWithAIDialog({
           <div className="flex items-center gap-2 min-w-0">
             <Sparkles size={16} className="text-aila-violet shrink-0" />
             <h2 className="font-display text-lg font-semibold text-fg-primary tracking-tight truncate">
-              Editar fluxo com IA
+              {title}
             </h2>
           </div>
           <button
@@ -205,7 +211,7 @@ export function EditWithAIDialog({
             />
 
             <div className="flex flex-wrap gap-1.5">
-              {QUICK_HINTS.map((hint) => (
+              {hints.map((hint) => (
                 <button
                   key={hint}
                   type="button"
