@@ -14,6 +14,9 @@ export type ProcessCategory =
   | 'TI'
   | 'OUTRO';
 
+/** Face do processo no pareamento AS-IS / TO-BE (Wave 4, Epic 4.A). */
+export type ProcessKind = 'SINGLE' | 'AS_IS' | 'TO_BE';
+
 export interface ProcessSummary {
   id: string;
   tenantId: string;
@@ -22,6 +25,8 @@ export interface ProcessSummary {
   description: string | null;
   category: ProcessCategory;
   version: number;
+  processKind: ProcessKind;
+  pairedProcessId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -90,4 +95,26 @@ export async function saveLayoutOverrides(
 
 export async function resetLayoutOverrides(id: string): Promise<void> {
   await apiFetch(`/processes/${id}/layout`, { method: 'DELETE' });
+}
+
+/** Par AS-IS / TO-BE (Epic 4.A). */
+export interface ProcessPair {
+  asIs: ProcessDetail;
+  toBe: ProcessDetail;
+}
+
+/** Gera o TO-BE vinculado a partir de um processo SINGLE (que passa a AS-IS). */
+export async function pairProcess(
+  id: string,
+  data?: { title?: string; slug?: string },
+): Promise<ProcessPair> {
+  return apiFetch<ProcessPair>(`/processes/${id}/pair`, {
+    method: 'POST',
+    body: JSON.stringify(data ?? {}),
+  });
+}
+
+/** Retorna o par { asIs, toBe } a partir de qualquer uma das faces. */
+export async function getProcessPair(id: string): Promise<ProcessPair> {
+  return apiFetch<ProcessPair>(`/processes/${id}/pair`);
 }

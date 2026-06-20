@@ -3,7 +3,7 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Code2, Workflow, Maximize2, Minimize2, Copy, Check, MessageCircle, Share2, Sparkles, StickyNote } from 'lucide-react';
+import { ArrowLeft, Code2, Workflow, Maximize2, Minimize2, Copy, Check, MessageCircle, Share2, Sparkles, StickyNote, GitCompare } from 'lucide-react';
 import ReactFlow, {
   Background,
   Controls,
@@ -21,7 +21,7 @@ import 'reactflow/dist/style.css';
 import { graphToReactFlow } from '@/lib/parse-process-graph';
 import { layoutProcessGraph } from '@/lib/layout';
 import { BpmnNode, BpmnEdge, formatProcessGraphPoolLabel } from '@/lib/types';
-import { getProcess, saveLayoutOverrides, updateProcess, ProcessDetail } from '@/services/process.service';
+import { getProcess, saveLayoutOverrides, updateProcess, pairProcess, ProcessDetail } from '@/services/process.service';
 import { getThreads, createThread, deleteThread, CommentThread } from '@/services/comment.service';
 import { getNotes, createNote, updateNote, deleteNote, StickyNote as StickyNoteType } from '@/services/sticky-note.service';
 import { useAuth } from '@/contexts/auth.context';
@@ -180,6 +180,20 @@ export default function ProcessView() {
   const [codeCopied, setCodeCopied] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const [editWithAIOpen, setEditWithAIOpen] = useState(false);
+  const [pairing, setPairing] = useState(false);
+
+  // Epic 4.A — gera o TO-BE vinculado (processo SINGLE vira AS-IS) e abre a comparação.
+  const handleGenerateToBe = useCallback(async () => {
+    if (!processId || pairing) return;
+    setPairing(true);
+    try {
+      const pair = await pairProcess(processId);
+      router.push(`/pair/${pair.asIs.id}`);
+    } catch (err) {
+      console.error('Falha ao gerar TO-BE', err);
+      setPairing(false);
+    }
+  }, [processId, pairing, router]);
 
   const handleApplyAIEdit = useCallback(
     async (next: GeneratedGraph) => {
@@ -516,6 +530,30 @@ export default function ProcessView() {
           >
             <Code2 size={12} /> Codigo
           </button>
+          {proc.processKind === 'SINGLE' ? (
+            <button
+              onClick={handleGenerateToBe}
+              disabled={pairing}
+              className="inline-flex items-center justify-center gap-1.5 h-9 w-9 sm:h-auto sm:w-auto sm:px-3 sm:py-1.5 rounded-bpmn text-xs font-semibold border border-border-app text-fg-secondary hover:bg-surface-hover transition-all disabled:opacity-50"
+              title="Gerar TO-BE (versão otimizada do processo)"
+              aria-label="Gerar TO-BE"
+            >
+              <GitCompare size={14} className="sm:hidden" />
+              <GitCompare size={12} className="hidden sm:inline" />
+              <span className="hidden sm:inline">{pairing ? 'Gerando…' : 'Gerar TO-BE'}</span>
+            </button>
+          ) : (
+            <Link
+              href={`/pair/${processId}`}
+              className="inline-flex items-center justify-center gap-1.5 h-9 w-9 sm:h-auto sm:w-auto sm:px-3 sm:py-1.5 rounded-bpmn text-xs font-semibold border border-border-app text-fg-secondary hover:bg-surface-hover transition-all"
+              title="Comparar AS-IS | TO-BE"
+              aria-label="Comparar AS-IS e TO-BE"
+            >
+              <GitCompare size={14} className="sm:hidden" />
+              <GitCompare size={12} className="hidden sm:inline" />
+              <span className="hidden sm:inline">Comparar</span>
+            </Link>
+          )}
           <button
             onClick={() => setEditWithAIOpen(true)}
             className="inline-flex items-center justify-center gap-1.5 h-9 w-9 sm:h-auto sm:w-auto sm:px-3 sm:py-1.5 rounded-bpmn text-xs font-semibold border border-aila-violet/30 bg-aila-violet/5 text-aila-violet hover:bg-aila-violet/10 transition-all"

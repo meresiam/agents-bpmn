@@ -157,11 +157,24 @@ export function TenantFlowsGrid({ tenantId, processes, loading }: TenantFlowsGri
                   <ThumbnailDecorative tone={tone} />
                   <div className="p-4">
                     <div className="flex items-start justify-between gap-2 mb-2">
-                      <span
-                        className={`inline-flex items-center gap-1 text-[10px] font-semibold tracking-[0.06em] uppercase px-2 py-0.5 rounded-full ${tone.chipBg} ${tone.chipText}`}
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: tone.dot }} />
-                        {CATEGORY_LABEL[p.category]}
+                      <span className="inline-flex items-center gap-1.5 flex-wrap">
+                        <span
+                          className={`inline-flex items-center gap-1 text-[10px] font-semibold tracking-[0.06em] uppercase px-2 py-0.5 rounded-full ${tone.chipBg} ${tone.chipText}`}
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: tone.dot }} />
+                          {CATEGORY_LABEL[p.category]}
+                        </span>
+                        {p.processKind !== 'SINGLE' && (
+                          <span
+                            className={`inline-flex items-center text-[9px] font-bold tracking-[0.08em] uppercase px-1.5 py-0.5 rounded-full border ${
+                              p.processKind === 'TO_BE'
+                                ? 'border-aila-violet/30 bg-aila-violet/10 text-aila-violet'
+                                : 'border-fg-secondary/30 bg-fg-secondary/10 text-fg-secondary'
+                            }`}
+                          >
+                            {p.processKind === 'TO_BE' ? 'TO-BE' : 'AS-IS'}
+                          </span>
+                        )}
                       </span>
                       <ArrowUpRight
                         size={14}
