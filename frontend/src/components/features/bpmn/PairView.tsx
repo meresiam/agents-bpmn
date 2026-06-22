@@ -1,6 +1,6 @@
 'use client';
 
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { AnimatePresence } from 'framer-motion';
@@ -144,6 +144,7 @@ function FaceHeader({ face, proc }: { face: Face; proc: ProcessDetail }) {
 export default function PairView() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const processId = params.id as string;
 
@@ -163,6 +164,8 @@ export default function PairView() {
   const [applyingGap, setApplyingGap] = useState<Gap | null>(null);
   // Epic 4.C.1 — geração assistida do TO-BE (otimiza o AS-IS via IA)
   const [suggestingToBe, setSuggestingToBe] = useState(false);
+  // Quando vem de "Gerar TO-BE" (?suggest=1): abre o dialog já gerando automaticamente.
+  const [autoSuggest, setAutoSuggest] = useState(false);
 
   // POP (Wave 6) — geração + painel
   const [pop, setPop] = useState<PopResult | null>(null);
@@ -232,6 +235,21 @@ export default function PairView() {
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, [processId, isAuthenticated]);
+
+  // ?suggest=1 (vindo de "Gerar TO-BE"): abre o dialog já otimizando, mas só se o
+  // TO-BE ainda for cópia do AS-IS. Dispara uma vez e limpa o query param.
+  const autoSuggestFiredRef = useRef(false);
+  useEffect(() => {
+    if (autoSuggestFiredRef.current || !asIs || !toBe) return;
+    if (searchParams.get('suggest') !== '1') return;
+    autoSuggestFiredRef.current = true;
+    const isClone = JSON.stringify(asIs.graph.nodes) === JSON.stringify(toBe.graph.nodes);
+    if (isClone) {
+      setAutoSuggest(true);
+      setSuggestingToBe(true);
+    }
+    router.replace(`/pair/${processId}`, { scroll: false });
+  }, [asIs, toBe, searchParams, router, processId]);
 
   if (authLoading || loading) {
     return (
@@ -393,10 +411,15 @@ export default function PairView() {
           title="Sugerir TO-BE com IA"
           hints={TO_BE_HINTS}
           initialPrompt={SUGGEST_TO_BE_PROMPT}
-          onClose={() => setSuggestingToBe(false)}
+          autoRun={autoSuggest}
+          onClose={() => {
+            setSuggestingToBe(false);
+            setAutoSuggest(false);
+          }}
           onApply={async (next) => {
             await handleApplyAIEdit(next);
             setSuggestingToBe(false);
+            setAutoSuggest(false);
           }}
         />
       )}

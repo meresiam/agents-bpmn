@@ -40,6 +40,8 @@ interface EditWithAIDialogProps {
   title?: string;
   /** Sugestões rápidas (chips). Default: dicas de edição pontual. */
   hints?: string[];
+  /** Dispara a geração automaticamente ao abrir (ex: fluxo "Gerar TO-BE" → otimiza na hora). */
+  autoRun?: boolean;
   /** Quem chama controla open/close pra preservar o lugar onde o botao mora. */
   onClose: () => void;
   /** Chamado quando o usuario aplica a edicao. Recebe o novo grafo + meta. */
@@ -60,6 +62,7 @@ export function EditWithAIDialog({
   initialPrompt,
   title = 'Editar fluxo com IA',
   hints = DEFAULT_HINTS,
+  autoRun = false,
   onClose,
   onApply,
 }: EditWithAIDialogProps) {
@@ -134,6 +137,15 @@ export function EditWithAIDialog({
       abortRef.current = null;
     }
   }, [prompt, generating, currentGraph, tenantId, processId]);
+
+  // Auto-run (ex: "Gerar TO-BE" → já começa a otimização ao abrir). Dispara uma vez.
+  const autoRanRef = useRef(false);
+  useEffect(() => {
+    if (autoRun && !autoRanRef.current && (initialPrompt ?? '').trim()) {
+      autoRanRef.current = true;
+      void runEdit();
+    }
+  }, [autoRun, initialPrompt, runEdit]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {

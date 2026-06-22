@@ -183,12 +183,14 @@ export default function ProcessView() {
   const [pairing, setPairing] = useState(false);
 
   // Epic 4.A — gera o TO-BE vinculado (processo SINGLE vira AS-IS) e abre a comparação.
+  // ?suggest=1 faz a PairView já rodar a otimização por IA (o TO-BE nasce clone do AS-IS;
+  // "Gerar TO-BE" deve entregar o fluxo otimizado, não a cópia).
   const handleGenerateToBe = useCallback(async () => {
     if (!processId || pairing) return;
     setPairing(true);
     try {
       const pair = await pairProcess(processId);
-      router.push(`/pair/${pair.asIs.id}`);
+      router.push(`/pair/${pair.asIs.id}?suggest=1`);
     } catch (err) {
       console.error('Falha ao gerar TO-BE', err);
       setPairing(false);
