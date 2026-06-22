@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Workflow, Pencil, Sparkles, Loader2, Wand2 } from 'lucide-react';
+import { ArrowLeft, Workflow, Pencil, Sparkles, Loader2, Wand2, FileText } from 'lucide-react';
 import ReactFlow, {
   Background,
   Controls,
@@ -21,6 +21,8 @@ import { getProcessPair, updateProcess, ProcessDetail } from '@/services/process
 import { analyzeGap, Gap, GapAnalysisResult, GeneratedGraph } from '@/services/chat.service';
 import { useAuth } from '@/contexts/auth.context';
 import { GapPanel } from './GapPanel';
+import { PopPanel } from './PopPanel';
+import { generatePop, PopResult } from '@/services/pop.service';
 import { EditWithAIDialog } from '@/components/features/chat/EditWithAIDialog';
 import { SUGGEST_TO_BE_PROMPT, TO_BE_HINTS, buildGapEditPrompt } from '@/lib/to-be-prompts';
 import { ActivityNode } from './nodes/ActivityNode';
@@ -162,6 +164,28 @@ export default function PairView() {
   // Epic 4.C.1 — geração assistida do TO-BE (otimiza o AS-IS via IA)
   const [suggestingToBe, setSuggestingToBe] = useState(false);
 
+  // POP (Wave 6) — geração + painel
+  const [pop, setPop] = useState<PopResult | null>(null);
+  const [popLoading, setPopLoading] = useState(false);
+  const [popPanelOpen, setPopPanelOpen] = useState(false);
+  const [popError, setPopError] = useState<string | null>(null);
+
+  const runGeneratePop = useCallback(async () => {
+    if (!processId) return;
+    setPopLoading(true);
+    setPopError(null);
+    setPopPanelOpen(true);
+    try {
+      const result = await generatePop(processId);
+      setPop(result);
+    } catch (err) {
+      setPopError((err as Error).message);
+      setPopPanelOpen(false);
+    } finally {
+      setPopLoading(false);
+    }
+  }, [processId]);
+
   const runAnalyze = useCallback(async () => {
     if (!processId) return;
     setGapLoading(true);
@@ -284,12 +308,24 @@ export default function PairView() {
             {gapLoading ? <Loader2 size={12} className="animate-spin hidden sm:inline" /> : <Sparkles size={12} className="hidden sm:inline" />}
             <span className="hidden sm:inline">{gapLoading ? 'Analisando…' : gapResult ? 'Ver GAP' : 'Analisar GAP'}</span>
           </button>
+
+          <button
+            onClick={pop ? () => setPopPanelOpen(true) : runGeneratePop}
+            disabled={popLoading}
+            className="inline-flex items-center justify-center gap-1.5 h-9 w-9 sm:h-auto sm:w-auto sm:px-3 sm:py-1.5 rounded-bpmn text-xs font-semibold bg-fg-primary text-surface hover:opacity-90 transition-all disabled:opacity-50"
+            title="Gerar o POP (Procedimento Operacional Padrão) do TO-BE"
+            aria-label="Gerar POP"
+          >
+            {popLoading ? <Loader2 size={14} className="animate-spin sm:hidden" /> : <FileText size={14} className="sm:hidden" />}
+            {popLoading ? <Loader2 size={12} className="animate-spin hidden sm:inline" /> : <FileText size={12} className="hidden sm:inline" />}
+            <span className="hidden sm:inline">{popLoading ? 'Gerando…' : pop ? 'Ver POP' : 'Gerar POP'}</span>
+          </button>
         </div>
       </header>
 
-      {gapError && (
+      {(gapError || popError) && (
         <div className="px-4 py-2 bg-aila-error/10 border-b border-aila-error/30 text-xs text-aila-error">
-          {gapError}
+          {gapError || popError}
         </div>
       )}
 
@@ -330,6 +366,20 @@ export default function PairView() {
             onReanalyze={runAnalyze}
             onApplyToBe={handleApplyToBe}
             reanalyzing={gapLoading}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Painel do POP (Wave 6) */}
+      <AnimatePresence>
+        {popPanelOpen && pop && (
+          <PopPanel
+            key={`pop-${pop.id}`}
+            result={pop}
+            currentToBeVersion={toBe.version}
+            onClose={() => setPopPanelOpen(false)}
+            onRegenerate={runGeneratePop}
+            regenerating={popLoading}
           />
         )}
       </AnimatePresence>
