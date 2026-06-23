@@ -29,6 +29,10 @@ export interface BpmnNodeData {
   nodeType: BpmnNodeType;
   icon?: string;
   bpmn?: BpmnSemantic;
+  /** Índice da raia resolvida (injetado pelo layout swimlane). */
+  laneIndex?: number;
+  /** Cor de acento da raia — borda/ícone/traço (injetado pelo layout swimlane). */
+  accent?: string;
 }
 
 export interface BpmnGroupData {
@@ -50,6 +54,8 @@ export interface BpmnPoolNodeData {
   contentPaddingTop: number;
   poolWidth: number;
   poolHeight: number;
+  /** Tema (cor + ícone) por raia, mesmo índice de `lanes` (injetado pelo layout swimlane). */
+  laneThemes?: { stroke: string; tint: string; labelBg: string; iconKey: string }[];
 }
 
 export type BpmnNode = Node<BpmnNodeData | BpmnGroupData | BpmnPoolNodeData>;

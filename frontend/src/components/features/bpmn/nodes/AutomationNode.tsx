@@ -16,6 +16,8 @@ const nodeMotion = {
 function AutomationNodeComponent({ data, selected }: NodeProps<BpmnNodeData>) {
   const taskKind = data.bpmn?.task ?? 'serviceTask';
   const showMarker = Boolean(taskKind && taskKind !== 'task');
+  // Automação herda a cor da raia; sem raia, mantém o violeta AILA como acento.
+  const accent = data.accent ?? '#8D80EC';
 
   return (
     <motion.div
@@ -30,25 +32,30 @@ function AutomationNodeComponent({ data, selected }: NodeProps<BpmnNodeData>) {
       />
 
       <div
+        style={{ borderColor: accent }}
         className={`
           relative rounded-bpmn min-w-[132px] max-w-[200px] pb-3 pt-3.5
           ${showMarker ? 'pl-7 pr-3.5' : 'px-4'}
           text-center text-[12px] leading-snug font-medium text-fg-primary
-          bg-surface-elevated border border-aila-violet/60 shadow-sm
-          transition-[box-shadow,border-color,transform] duration-200
-          ${selected ? 'border-aila-violet shadow-md ring-1 ring-aila-violet/40 shadow-aila-violet/15' : 'hover:border-aila-violet hover:shadow-md'}
+          bg-surface-elevated border-[1.5px] border-dashed shadow-sm
+          transition-[box-shadow,transform] duration-200
+          ${selected ? 'shadow-md ring-1 ring-aila-violet/40 shadow-aila-violet/15' : 'hover:shadow-md'}
         `}
       >
         {/* Badge AUTO — canto superior direito */}
         <span
-          className="pointer-events-none absolute -top-2 -right-1.5 z-[2] inline-flex items-center px-1.5 py-px text-[8px] font-bold tracking-[0.08em] uppercase rounded-sm bg-aila-violet text-aila-cream shadow-sm"
+          style={{ backgroundColor: accent }}
+          className="pointer-events-none absolute -top-2 -right-1.5 z-[2] inline-flex items-center px-1.5 py-px text-[8px] font-bold tracking-[0.08em] uppercase rounded-sm text-white shadow-sm"
           title="Service Task / Automação"
         >
           AUTO
         </span>
-        <BpmnTaskMarker kind={taskKind} />
+        <BpmnTaskMarker kind={taskKind} color={accent} />
         {(data.lane ?? data.phase) && (
-          <div className="text-[9px] uppercase tracking-[0.06em] text-fg-secondary mb-1 font-semibold">
+          <div
+            className="text-[9px] uppercase tracking-[0.06em] mb-1 font-semibold"
+            style={{ color: accent }}
+          >
             {data.lane ?? data.phase}
           </div>
         )}

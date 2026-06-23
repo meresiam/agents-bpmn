@@ -47,12 +47,14 @@ function StartEndNodeComponent({ data, selected, id }: NodeProps<BpmnNodeData>) 
         {!isEnd && (
           <>
             <motion.span
-              className="pointer-events-none absolute inset-0 rounded-full border-2 border-aila-warning"
+              className="pointer-events-none absolute inset-0 rounded-full border-2"
+              style={{ borderColor: '#16a34a' }}
               animate={{ scale: [1, 1.5], opacity: [0.55, 0] }}
               transition={{ duration: 2.4, repeat: Infinity, ease: 'easeOut' }}
             />
             <motion.span
-              className="pointer-events-none absolute inset-0 rounded-full border border-aila-warning"
+              className="pointer-events-none absolute inset-0 rounded-full border"
+              style={{ borderColor: '#16a34a' }}
               animate={{ scale: [1, 1.3], opacity: [0.35, 0] }}
               transition={{ duration: 2.4, repeat: Infinity, ease: 'easeOut', delay: 0.6 }}
             />
@@ -71,14 +73,14 @@ function StartEndNodeComponent({ data, selected, id }: NodeProps<BpmnNodeData>) 
         <Handle type="source" position={Position.Top} id="top-out" className="!w-[1px] !h-[1px] !opacity-0 !min-w-0 !min-h-0" />
         <Handle type="source" position={Position.Bottom} id="bottom" className="!w-[1px] !h-[1px] !opacity-0 !min-w-0 !min-h-0" />
 
-        <svg viewBox="0 0 36 36" width={size} height={size} className="absolute inset-0 text-fg-primary">
+        <svg viewBox="0 0 36 36" width={size} height={size} className="absolute inset-0">
           <circle
             cx="18"
             cy="18"
             r={isEnd ? 14 : 15}
-            fill={isEnd ? 'var(--aila-error-tint, #fecaca)' : 'var(--aila-warning-tint, #fef9c3)'}
-            stroke="currentColor"
-            strokeWidth={isEnd ? 3.25 : selected ? 2 : 1.5}
+            fill={isEnd ? '#fee2e2' : '#dcfce7'}
+            stroke={isEnd ? '#dc2626' : '#16a34a'}
+            strokeWidth={isEnd ? 3.25 : selected ? 2 : 1.75}
           />
         </svg>
 

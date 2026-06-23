@@ -1,5 +1,6 @@
 import { BpmnNode, BpmnEdge, BpmnNodeData, BpmnPoolNodeData } from './types';
 import { NODE_HANDLE_ALIGN_HEIGHTS, NODE_HEIGHTS, nodeDimensions } from './layout-metrics';
+import { laneAccent, laneIconKey } from './lane-theme';
 
 function handleAlignHeightForType(type: string): number {
   return NODE_HANDLE_ALIGN_HEIGHTS[type] ?? NODE_HEIGHTS[type] ?? 72;
@@ -429,11 +430,15 @@ export function getSwimlaneLayoutedElements(
     handleAlignHeightMap
   );
 
-  // Build output nodes
-  const outputNodes: BpmnNode[] = contentNodes.map((cn) => ({
-    ...cn.rfNode,
-    position: positions.get(cn.id) ?? { x: 0, y: 0 },
-  }));
+  // Build output nodes — injeta cor de acento da raia no data (nós ficam "burros")
+  const outputNodes: BpmnNode[] = contentNodes.map((cn) => {
+    const accent = laneAccent(cn.laneIndex).stroke;
+    return {
+      ...cn.rfNode,
+      position: positions.get(cn.id) ?? { x: 0, y: 0 },
+      data: { ...(cn.rfNode.data as BpmnNodeData), laneIndex: cn.laneIndex, accent },
+    };
+  });
 
   // Pool dimensions
   let maxRight = SWIMLANE_CONTENT_OFFSET_X;
@@ -456,6 +461,10 @@ export function getSwimlaneLayoutedElements(
     contentPaddingTop: CONTENT_PADDING_TOP,
     poolWidth,
     poolHeight,
+    laneThemes: lanes.map((name, i) => {
+      const a = laneAccent(i);
+      return { stroke: a.stroke, tint: a.tint, labelBg: a.labelBg, iconKey: laneIconKey(name) };
+    }),
   };
 
   const poolNode: BpmnNode = {

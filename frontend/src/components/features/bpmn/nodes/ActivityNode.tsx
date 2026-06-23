@@ -15,6 +15,7 @@ const nodeMotion = {
 function ActivityNodeComponent({ data, selected }: NodeProps<BpmnNodeData>) {
   const taskKind = data.bpmn?.task;
   const showMarker = Boolean(taskKind && taskKind !== 'task');
+  const accent = data.accent;
 
   return (
     <motion.div
@@ -29,18 +30,23 @@ function ActivityNodeComponent({ data, selected }: NodeProps<BpmnNodeData>) {
       />
 
       <div
+        style={accent ? { borderColor: accent } : undefined}
         className={`
           relative rounded-bpmn min-w-[132px] max-w-[200px] pb-3 pt-3.5
           ${showMarker ? 'pl-7 pr-3.5' : 'px-4'}
           text-center text-[12px] leading-snug font-medium text-fg-primary
-          bg-surface-elevated border border-fg-primary/85 shadow-sm
-          transition-[box-shadow,border-color,transform] duration-200
-          ${selected ? 'border-fg-primary shadow-md ring-1 ring-aila-violet/40 shadow-aila-violet/10' : 'hover:border-fg-primary hover:shadow-md'}
+          bg-surface-elevated border-[1.5px] shadow-sm
+          ${accent ? '' : 'border-fg-primary/85'}
+          transition-[box-shadow,transform] duration-200
+          ${selected ? 'shadow-md ring-1 ring-aila-violet/40 shadow-aila-violet/10' : 'hover:shadow-md'}
         `}
       >
-        <BpmnTaskMarker kind={taskKind} />
+        <BpmnTaskMarker kind={taskKind} color={accent} />
         {(data.lane ?? data.phase) && (
-          <div className="text-[9px] uppercase tracking-[0.06em] text-fg-secondary mb-1 font-semibold">
+          <div
+            className="text-[9px] uppercase tracking-[0.06em] mb-1 font-semibold"
+            style={{ color: accent ?? 'var(--fg-secondary)' }}
+          >
             {data.lane ?? data.phase}
           </div>
         )}

@@ -96,19 +96,19 @@ export function BpmnLegend({ align = 'right' }: BpmnLegendProps) {
             <p className="text-[9px] font-semibold uppercase tracking-[0.1em] text-fg-tertiary mt-2 mb-1">Eventos</p>
             <LegendRow
               title="Início (Start Event)"
-              desc="Ponto em que o processo começa. Borda fina."
+              desc="Ponto em que o processo começa. Círculo verde, borda fina."
               icon={
-                <svg width="28" height="28" viewBox="0 0 36 36" className="text-fg-primary" aria-hidden>
-                  <circle cx="18" cy="18" r="14" fill="var(--surface-elevated)" stroke="currentColor" strokeWidth="1.5" />
+                <svg width="28" height="28" viewBox="0 0 36 36" aria-hidden>
+                  <circle cx="18" cy="18" r="14" fill="#dcfce7" stroke="#16a34a" strokeWidth="1.75" />
                 </svg>
               }
             />
             <LegendRow
               title="Fim (End Event)"
-              desc="Encerramento do fluxo. Borda mais espessa."
+              desc="Encerramento do fluxo. Círculo vermelho, borda mais espessa."
               icon={
-                <svg width="28" height="28" viewBox="0 0 36 36" className="text-fg-primary" aria-hidden>
-                  <circle cx="18" cy="18" r="13" fill="var(--surface-elevated)" stroke="currentColor" strokeWidth="3.2" />
+                <svg width="28" height="28" viewBox="0 0 36 36" aria-hidden>
+                  <circle cx="18" cy="18" r="13" fill="#fee2e2" stroke="#dc2626" strokeWidth="3.2" />
                 </svg>
               }
             />
@@ -216,7 +216,7 @@ export function BpmnLegend({ align = 'right' }: BpmnLegendProps) {
             <p className="text-[9px] font-semibold uppercase tracking-[0.1em] text-fg-tertiary mt-3 mb-1">Organização</p>
             <LegendRow
               title="Pool e lanes"
-              desc="O retângulo grande é o pool (processo ou participante). Faixas horizontais são lanes — papéis, times ou etapas."
+              desc="O retângulo grande é o pool (processo). Faixas horizontais são lanes — cada papel tem cor e ícone próprios; os nós herdam a cor da sua raia."
               icon={
                 <svg width="48" height="34" viewBox="0 0 56 36" className="text-fg-primary" aria-hidden>
                   <rect x="1" y="1" width="54" height="34" fill="var(--surface-hover)" stroke="currentColor" strokeWidth="1" rx="1" />

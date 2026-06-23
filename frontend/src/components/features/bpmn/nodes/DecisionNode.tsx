@@ -21,9 +21,10 @@ function DecisionNodeComponent({ data, selected }: NodeProps<BpmnNodeData>) {
         ? 'Parallel Gateway (AND)'
         : 'Inclusive Gateway (OR)';
 
+  const accent = data.accent;
   const gradientId = `aila-decision-grad-${useId().replace(/:/g, '')}`;
-  const strokeColor = selected ? `url(#${gradientId})` : 'currentColor';
-  const strokeWidth = selected ? 2.5 : 1.5;
+  const strokeColor = selected ? `url(#${gradientId})` : accent ?? 'currentColor';
+  const strokeWidth = selected ? 2.5 : 1.75;
 
   return (
     <motion.div

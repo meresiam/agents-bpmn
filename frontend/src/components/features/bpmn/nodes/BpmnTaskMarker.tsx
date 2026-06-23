@@ -4,18 +4,26 @@ import { memo } from 'react';
 import { BpmnTaskKind } from '@/lib/types';
 
 const wrap =
-  'pointer-events-none absolute left-2.5 top-2.5 z-[1] flex h-[18px] w-[18px] items-center justify-center text-fg-secondary';
+  'pointer-events-none absolute left-2.5 top-2.5 z-[1] flex h-[18px] w-[18px] items-center justify-center';
 
 /** Marcadores BPMN 2.0 no canto superior interno da tarefa */
-export const BpmnTaskMarker = memo(function BpmnTaskMarker({ kind }: { kind?: BpmnTaskKind }) {
+export const BpmnTaskMarker = memo(function BpmnTaskMarker({
+  kind,
+  color,
+}: {
+  kind?: BpmnTaskKind;
+  color?: string;
+}) {
   if (!kind || kind === 'task') return null;
 
   const sw = 1.45;
+  const style = color ? { color } : undefined;
+  const cls = color ? wrap : `${wrap} text-fg-secondary`;
 
   switch (kind) {
     case 'userTask':
       return (
-        <div className={wrap} title="User Task (BPMN)">
+        <div className={cls} style={style} title="User Task (BPMN)">
           <svg viewBox="0 0 16 16" width="15" height="15" fill="none" aria-hidden>
             <circle cx="8" cy="5.25" r="2.15" className="stroke-current" strokeWidth={sw} />
             <path
@@ -29,7 +37,7 @@ export const BpmnTaskMarker = memo(function BpmnTaskMarker({ kind }: { kind?: Bp
       );
     case 'serviceTask':
       return (
-        <div className={wrap} title="Service Task (BPMN)">
+        <div className={cls} style={style} title="Service Task (BPMN)">
           <svg viewBox="0 0 16 16" width="15" height="15" fill="none" aria-hidden>
             <circle cx="8" cy="8" r="5" className="stroke-current" strokeWidth={sw} />
             <circle cx="8" cy="8" r="1.85" className="stroke-current" strokeWidth={1.15} />
@@ -39,7 +47,7 @@ export const BpmnTaskMarker = memo(function BpmnTaskMarker({ kind }: { kind?: Bp
       );
     case 'scriptTask':
       return (
-        <div className={wrap} title="Script Task (BPMN)">
+        <div className={cls} style={style} title="Script Task (BPMN)">
           <svg viewBox="0 0 16 16" width="15" height="15" fill="none" aria-hidden>
             <rect x="2.25" y="2.25" width="11.5" height="11.5" rx="1.25" className="stroke-current" strokeWidth={sw} />
             <path d="M4.5 5.5h7M4.5 8h5.5M4.5 10.5h6" className="stroke-current" strokeWidth={1.1} strokeLinecap="round" />
@@ -48,7 +56,7 @@ export const BpmnTaskMarker = memo(function BpmnTaskMarker({ kind }: { kind?: Bp
       );
     case 'manualTask':
       return (
-        <div className={wrap} title="Manual Task (BPMN)">
+        <div className={cls} style={style} title="Manual Task (BPMN)">
           <svg viewBox="0 0 16 16" width="15" height="15" fill="none" aria-hidden>
             <path
               d="M8 2.4 L9.85 5.9 L13.6 6.65 L9.85 7.4 L8 10.9 L6.15 7.4 L2.4 6.65 L6.15 5.9 Z"
@@ -62,7 +70,7 @@ export const BpmnTaskMarker = memo(function BpmnTaskMarker({ kind }: { kind?: Bp
       );
     case 'sendTask':
       return (
-        <div className={wrap} title="Send Task (BPMN)">
+        <div className={cls} style={style} title="Send Task (BPMN)">
           <svg viewBox="0 0 16 16" width="15" height="15" fill="none" aria-hidden>
             <path d="M2.25 3.25h11.5v9.5H2.25z" className="stroke-current" strokeWidth={sw} />
             <path d="M2.25 3.25L8 7.35l5.75-4.1" className="stroke-current" strokeWidth={1.15} strokeLinejoin="round" />
@@ -71,7 +79,7 @@ export const BpmnTaskMarker = memo(function BpmnTaskMarker({ kind }: { kind?: Bp
       );
     case 'receiveTask':
       return (
-        <div className={wrap} title="Receive Task (BPMN)">
+        <div className={cls} style={style} title="Receive Task (BPMN)">
           <svg viewBox="0 0 16 16" width="15" height="15" fill="none" aria-hidden>
             <path d="M2.25 3.25h11.5v9.5H2.25z" className="stroke-current" strokeWidth={sw} />
             <circle cx="8" cy="8" r="2" className="stroke-current" strokeWidth={1.15} />
